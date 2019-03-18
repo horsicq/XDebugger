@@ -36,10 +36,15 @@ bool XDebugger::loadFile(QString sFileName, XDebugger::OPTIONS *pOptions)
         nFlags|=CREATE_NO_WINDOW;
     }
 
+    PROCESS_INFORMATION processInfo={};
+    STARTUPINFOW sturtupInfo={};
+
     sturtupInfo.cb=sizeof(sturtupInfo);
 
     if(CreateProcessW((const wchar_t*)sFileName.utf16(),0,0,0,0,nFlags,0,0,&sturtupInfo,&processInfo))
     {
+        nProcessId=processInfo.dwProcessId;
+
         if(ResumeThread(processInfo.hThread)!=(DWORD)-1)
         {
             while(true)
@@ -47,60 +52,87 @@ bool XDebugger::loadFile(QString sFileName, XDebugger::OPTIONS *pOptions)
                 DEBUG_EVENT DBGEvent={0};
                 WaitForDebugEvent(&DBGEvent, INFINITE);
 
-                if(DBGEvent.dwDebugEventCode==CREATE_PROCESS_DEBUG_EVENT)
-                {
-                    createProcessDebugInfo=DBGEvent.u.CreateProcessInfo;
+                quint32 nStatus=DBG_CONTINUE;
 
-                    onCreateProcessDebugEvent(&DBGEvent);
-                }
-                else if(DBGEvent.dwDebugEventCode==CREATE_THREAD_DEBUG_EVENT)
+                if(DBGEvent.dwProcessId==nProcessId)
                 {
-                    onCreateThreadDebugEvent(&DBGEvent);
-                }
-                else if(DBGEvent.dwDebugEventCode==EXIT_PROCESS_DEBUG_EVENT)
-                {
-                    onExitProcessDebugEvent(&DBGEvent);
-                    break;
-                }
-                else if(DBGEvent.dwDebugEventCode==EXIT_THREAD_DEBUG_EVENT)
-                {
-                    onExitThreadDebugEvent(&DBGEvent);
-                }
-                else if(DBGEvent.dwDebugEventCode==LOAD_DLL_DEBUG_EVENT)
-                {
-                    DLL_INFO dllInfo={};
-                    dllInfo.nImageBase=(qint64)DBGEvent.u.LoadDll.lpBaseOfDll;
-                    dllInfo.nImageSize=XProcess::getImageSize(getProcessHandle(),dllInfo.nImageBase);
-                    dllInfo.sFileName=XProcess::getFileNameByHandle(DBGEvent.u.LoadDll.hFile);
-                    dllInfo.sName=QFileInfo(dllInfo.sFileName).baseName();
+                    if(DBGEvent.dwDebugEventCode==CREATE_PROCESS_DEBUG_EVENT)
+                    {
+                        createProcessInfo.hProcess=DBGEvent.u.CreateProcessInfo.hProcess;
+                        createProcessInfo.hThread=DBGEvent.u.CreateProcessInfo.hThread;
+                        createProcessInfo.nBaseOfImage=(qint64)DBGEvent.u.CreateProcessInfo.lpBaseOfImage;
+                        createProcessInfo.nStartAddress=(qint64)DBGEvent.u.CreateProcessInfo.lpStartAddress;
+                        createProcessInfo.sFileName=XProcess::getFileNameByHandle(DBGEvent.u.CreateProcessInfo.hFile);
+                        createProcessInfo.nThreadLocalBase=(qint64)DBGEvent.u.CreateProcessInfo.lpThreadLocalBase;
 
-                    mapDLL.insert(dllInfo.nImageBase,dllInfo);
+                        addBP(createProcessInfo.nStartAddress,BP_TYPE_CC,BP_INFO_ENTRYPOINT,1);
 
-                    onLoadDllDebugEvent(&dllInfo);
-                }
-                else if(DBGEvent.dwDebugEventCode==UNLOAD_DLL_DEBUG_EVENT)
-                {
-                    qint64 nDllBase=(qint64)DBGEvent.u.UnloadDll.lpBaseOfDll;
-                    DLL_INFO dllInfo=mapDLL.value(nDllBase);
+                        onCreateProcessDebugEvent(&createProcessInfo);
+                    }
+                    else if(DBGEvent.dwDebugEventCode==CREATE_THREAD_DEBUG_EVENT)
+                    {
+                        CREATETHREAD_INFO createThreadInfo={};
 
-                    mapDLL.remove(nDllBase);
+                        createThreadInfo.hThread=DBGEvent.u.CreateThread.hThread;
+                        createThreadInfo.nStartAddress=(qint64)DBGEvent.u.CreateThread.lpStartAddress;
+                        createThreadInfo.nThreadLocalBase=(qint64)DBGEvent.u.CreateThread.lpThreadLocalBase;
 
-                    onUnloadDllDebugEvent(&dllInfo);
-                }
-                else if(DBGEvent.dwDebugEventCode==OUTPUT_DEBUG_STRING_EVENT)
-                {
-                    onOutputDebugStringEvent(&DBGEvent);
-                }
-                else if(DBGEvent.dwDebugEventCode==RIP_EVENT)
-                {
-                    onRipEvent(&DBGEvent);
-                }
-                else if(DBGEvent.dwDebugEventCode==EXCEPTION_DEBUG_EVENT)
-                {
+                        onCreateThreadDebugEvent(&createThreadInfo);
+                    }
+                    else if(DBGEvent.dwDebugEventCode==EXIT_PROCESS_DEBUG_EVENT)
+                    {
+                        EXITPROCESS_INFO exitProcessInfo={};
 
+                        exitProcessInfo.nExitCode=(qint32)DBGEvent.u.ExitProcess.dwExitCode;
+
+                        onExitProcessDebugEvent(&exitProcessInfo);
+
+                        break;
+                    }
+                    else if(DBGEvent.dwDebugEventCode==EXIT_THREAD_DEBUG_EVENT)
+                    {
+                        EXITTHREAD_INFO exitThreadInfo={};
+
+                        exitThreadInfo.nEcitCode=(qint32)DBGEvent.u.ExitThread.dwExitCode;
+
+                        onExitThreadDebugEvent(&exitThreadInfo);
+                    }
+                    else if(DBGEvent.dwDebugEventCode==LOAD_DLL_DEBUG_EVENT)
+                    {
+                        DLL_INFO dllInfo={};
+                        dllInfo.nImageBase=(qint64)DBGEvent.u.LoadDll.lpBaseOfDll;
+                        dllInfo.nImageSize=XProcess::getImageSize(getProcessHandle(),dllInfo.nImageBase);
+                        dllInfo.sFileName=XProcess::getFileNameByHandle(DBGEvent.u.LoadDll.hFile);
+                        dllInfo.sName=QFileInfo(dllInfo.sFileName).baseName();
+
+                        mapDLL.insert(dllInfo.nImageBase,dllInfo);
+
+                        onLoadDllDebugEvent(&dllInfo);
+                    }
+                    else if(DBGEvent.dwDebugEventCode==UNLOAD_DLL_DEBUG_EVENT)
+                    {
+                        qint64 nDllBase=(qint64)DBGEvent.u.UnloadDll.lpBaseOfDll;
+                        DLL_INFO dllInfo=mapDLL.value(nDllBase);
+
+                        mapDLL.remove(nDllBase);
+
+                        onUnloadDllDebugEvent(&dllInfo);
+                    }
+                    else if(DBGEvent.dwDebugEventCode==OUTPUT_DEBUG_STRING_EVENT)
+                    {
+                        onOutputDebugStringEvent(&DBGEvent);
+                    }
+                    else if(DBGEvent.dwDebugEventCode==RIP_EVENT)
+                    {
+                        onRipEvent(&DBGEvent);
+                    }
+                    else if(DBGEvent.dwDebugEventCode==EXCEPTION_DEBUG_EVENT)
+                    {
+                        nStatus=DBG_EXCEPTION_NOT_HANDLED;
+                    }
                 }
 
-                ContinueDebugEvent(DBGEvent.dwProcessId,DBGEvent.dwThreadId,DBG_CONTINUE);
+                ContinueDebugEvent(DBGEvent.dwProcessId,DBGEvent.dwThreadId,nStatus);
             }
 
             bSuccess=true;
@@ -113,13 +145,32 @@ bool XDebugger::loadFile(QString sFileName, XDebugger::OPTIONS *pOptions)
 
 HANDLE XDebugger::getProcessHandle()
 {
-    return createProcessDebugInfo.hProcess;
+    return createProcessInfo.hProcess;
 }
 
-bool XDebugger::addBP(qint64 nAddress, XDebugger::BREAKPOINT *pBP)
+bool XDebugger::addBP(qint64 nAddress, XDebugger::BP_TYPE bpType, XDebugger::BP_INFO bpInfo, qint32 nCount)
 {
-    // TODO
-    return false;
+    bool bResult=false;
+
+    BREAKPOINT bp={};
+    bp.nCount=nCount;
+    bp.bpInfo=bpInfo;
+    bp.bpType=bpType;
+
+    if(bpType==BP_TYPE_CC)
+    {
+        if(XProcess::readData(getProcessHandle(),nAddress,bp.origData,1))
+        {
+            if(XProcess::writeData(getProcessHandle(),nAddress,"\xCC",1))
+            {
+                mapBP.insert(nAddress,bp);
+
+                bResult=true;
+            }
+        }
+    }
+
+    return bResult;
 }
 
 bool XDebugger::removeBP(qint64 nAddress)
@@ -128,7 +179,12 @@ bool XDebugger::removeBP(qint64 nAddress)
 
     if(mapBP.contains(nAddress))
     {
-        // TODO restore bytes etc
+        BREAKPOINT bp=mapBP.value(nAddress);
+        if(bp.bpInfo==BP_TYPE_CC)
+        {
+            XProcess::writeData(getProcessHandle(),nAddress,bp.origData,bp.nOrigDataSize);
+        }
+
         mapBP.remove(nAddress);
         bResult=true;
     }
@@ -138,9 +194,8 @@ bool XDebugger::removeBP(qint64 nAddress)
 
 void XDebugger::clear()
 {
-    processInfo={};
-    sturtupInfo={};
-    createProcessDebugInfo={};
+    nProcessId=0;
+    createProcessInfo={};
     mapDLL.clear();
     mapBP.clear();
 }

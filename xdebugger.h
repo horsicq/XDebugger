@@ -59,6 +59,8 @@ private:
         qint32 nCount;
         BP_TYPE bpType;
         BP_INFO bpInfo;
+        char origData[4];
+        qint32 nOrigDataSize;
     };
 
     void clear();
@@ -71,27 +73,52 @@ protected:
         qint64 nImageBase;
         qint64 nImageSize;
     };
+    struct CREATEPROCESS_INFO
+    {
+        HANDLE hProcess;
+        HANDLE hThread;
+        QString sFileName;
+        qint64 nBaseOfImage;
+        qint64 nStartAddress;
+        qint64 nThreadLocalBase;
+    };
+    struct CREATETHREAD_INFO
+    {
+        HANDLE hThread;
+        qint64 nThreadLocalBase;
+        qint64 nStartAddress;
+    };
+    struct EXITPROCESS_INFO
+    {
+        qint32 nExitCode;
+    };
+    struct EXITTHREAD_INFO
+    {
+        qint32 nEcitCode;
+    };
 
-    virtual void onCreateProcessDebugEvent(DEBUG_EVENT *pDebugEvent){};
-    virtual void onCreateThreadDebugEvent(DEBUG_EVENT *pDebugEvent){};
-    virtual void onExitProcessDebugEvent(DEBUG_EVENT *pDebugEvent){};
-    virtual void onExitThreadDebugEvent(DEBUG_EVENT *pDebugEvent){};
-    virtual void onLoadDllDebugEvent(DLL_INFO *pDllInfo){};
-    virtual void onUnloadDllDebugEvent(DLL_INFO *pDllInfo){};
-    virtual void onOutputDebugStringEvent(DEBUG_EVENT *pDebugEvent){};
-    virtual void onRipEvent(DEBUG_EVENT *pDebugEvent){};
+    virtual void onCreateProcessDebugEvent(CREATEPROCESS_INFO *pCreateProcessInfo){}
+    virtual void onCreateThreadDebugEvent(CREATETHREAD_INFO *pCreateThreadInfo){}
+    virtual void onExitProcessDebugEvent(EXITPROCESS_INFO *pExitProcessInfo){}
+    virtual void onExitThreadDebugEvent(EXITTHREAD_INFO *pExitThreadInfo){}
+    virtual void onLoadDllDebugEvent(DLL_INFO *pDllInfo){}
+    virtual void onUnloadDllDebugEvent(DLL_INFO *pDllInfo){}
+    virtual void onOutputDebugStringEvent(DEBUG_EVENT *pDebugEvent){}
+    virtual void onRipEvent(DEBUG_EVENT *pDebugEvent){}
 
     HANDLE getProcessHandle();
-    bool addBP(qint64 nAddress,BREAKPOINT *pBP);
+//    qint32 nCount;
+//    BP_TYPE bpType;
+//    BP_INFO bpInfo;
+    bool addBP(qint64 nAddress,BP_TYPE bpType=BP_TYPE_CC,BP_INFO bpInfo=BP_INFO_UNKNOWN,qint32 nCount=-1);
     bool removeBP(qint64 nAddress);
 signals:
 
 public slots:
 
 private:
-    PROCESS_INFORMATION processInfo;
-    STARTUPINFOW sturtupInfo;
-    CREATE_PROCESS_DEBUG_INFO createProcessDebugInfo;
+    qint32 nProcessId;
+    CREATEPROCESS_INFO createProcessInfo;
     QMap<qint64,DLL_INFO> mapDLL;
     QMap<qint64,BREAKPOINT> mapBP;
 };
