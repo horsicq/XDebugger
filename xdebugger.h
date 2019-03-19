@@ -42,28 +42,12 @@ public:
     bool loadFile(QString sFileName,OPTIONS *pOptions);
 
 private:
-    enum BP_TYPE
-    {
-        BP_TYPE_UNKNOWN=0,
-        BP_TYPE_CC
-    };
-
-    enum BP_INFO
-    {
-        BP_INFO_UNKNOWN=0,
-        BP_INFO_ENTRYPOINT
-    };
-
-    struct BREAKPOINT
-    {
-        qint32 nCount;
-        BP_TYPE bpType;
-        BP_INFO bpInfo;
-        char origData[4];
-        qint32 nOrigDataSize;
-    };
-
-    void clear();
+    void _clear();
+    bool _setIP(HANDLE hThread,qint64 nAddress);
+    bool _setStep(HANDLE hThread);
+    qint64 _getRetAddress(HANDLE hProcess, HANDLE hThread);
+    quint64 _getAX(HANDLE hThread);
+    quint64 _getSP(HANDLE hThread);
 
 protected:
     struct DLL_INFO
@@ -94,7 +78,41 @@ protected:
     };
     struct EXITTHREAD_INFO
     {
-        qint32 nEcitCode;
+        qint32 nExitCode;
+    };
+    struct ENTRYPOINT_INFO
+    {
+        qint64 nAddress;
+    };
+    enum BP_TYPE
+    {
+        BP_TYPE_UNKNOWN=0,
+        BP_TYPE_CC
+    };
+    enum BP_INFO
+    {
+        BP_INFO_UNKNOWN=0,
+        BP_INFO_ENTRYPOINT,
+        BP_INFO_API_ENTER,
+        BP_INFO_API_LEAVE
+    };
+    struct BREAKPOINT
+    {
+        qint64 nAddress;
+        qint32 nCount;
+        BP_TYPE bpType;
+        BP_INFO bpInfo;
+        char origData[4];
+        qint32 nOrigDataSize;
+        QVariant vInfo;
+    };
+    struct FUNCTION_INFO
+    {
+        qint64 nAddress;
+        qint64 nRetAddress;
+        QString sName;
+        HANDLE hThread;
+        qint64 nStackFrame;
     };
 
     virtual void onCreateProcessDebugEvent(CREATEPROCESS_INFO *pCreateProcessInfo){}
@@ -105,22 +123,34 @@ protected:
     virtual void onUnloadDllDebugEvent(DLL_INFO *pDllInfo){}
     virtual void onOutputDebugStringEvent(DEBUG_EVENT *pDebugEvent){}
     virtual void onRipEvent(DEBUG_EVENT *pDebugEvent){}
+    virtual void onEntryPoint(ENTRYPOINT_INFO *pEntryPointInfo){}
+    virtual void onBreakPoint(BREAKPOINT *pBp){}
+    virtual void onFunctionEnter(FUNCTION_INFO *pFunctionInfo){}
+    virtual void onFunctionLeave(FUNCTION_INFO *pFunctionInfo){}
 
     HANDLE getProcessHandle();
-//    qint32 nCount;
-//    BP_TYPE bpType;
-//    BP_INFO bpInfo;
-    bool addBP(qint64 nAddress,BP_TYPE bpType=BP_TYPE_CC,BP_INFO bpInfo=BP_INFO_UNKNOWN,qint32 nCount=-1);
+
+    bool addBP(qint64 nAddress,BP_TYPE bpType=BP_TYPE_CC,BP_INFO bpInfo=BP_INFO_UNKNOWN,qint32 nCount=-1,QVariant vInfo=QVariant());
     bool removeBP(qint64 nAddress);
+    bool addAPIHook(QString sFunctionName);
+    bool removeAPIHook(QString sFunctionName);
+
+    bool _addAPIHook(DLL_INFO dllInfo,QString sFunctionName);
+
+    quint64 getFunctionResult(FUNCTION_INFO *pFunctionInfo);
+    quint64 getFunctionParameter(FUNCTION_INFO *pFunctionInfo,qint32 nNumber); // TODO call conversions
+
 signals:
 
 public slots:
 
 private:
-    qint32 nProcessId;
+    quint32 nProcessId;
     CREATEPROCESS_INFO createProcessInfo;
     QMap<qint64,DLL_INFO> mapDLL;
     QMap<qint64,BREAKPOINT> mapBP;
+    QMap<quint32,HANDLE> mapThreads;
+    QSet<QString> stAPIHooks;
 };
 
 #endif // XDEBUGGER_H
