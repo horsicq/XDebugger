@@ -222,7 +222,7 @@ bool XDebugger::loadFile(QString sFileName, XDebugger::OPTIONS *pOptions)
                         {
                             if(bRestoreBP)
                             {
-                                addBP(bpRestore.nAddress,bpRestore.bpType,bpRestore.bpInfo,bpRestore.nCount);
+                                addBP(bpRestore.nAddress,bpRestore.bpType,bpRestore.bpInfo,bpRestore.nCount,bpRestore.vInfo);
                                 bRestoreBP=false;
                                 nStatus=DBG_CONTINUE;
                             }
