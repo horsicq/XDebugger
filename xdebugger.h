@@ -129,20 +129,13 @@ protected:
     virtual void onFunctionLeave(FUNCTION_INFO *pFunctionInfo){}
 
     HANDLE getProcessHandle();
-
     bool addBP(qint64 nAddress,BP_TYPE bpType=BP_TYPE_CC,BP_INFO bpInfo=BP_INFO_UNKNOWN,qint32 nCount=-1,QVariant vInfo=QVariant());
     bool removeBP(qint64 nAddress);
     bool addAPIHook(QString sFunctionName);
     bool removeAPIHook(QString sFunctionName);
-
     bool _addAPIHook(DLL_INFO dllInfo,QString sFunctionName);
-
     quint64 getFunctionResult(FUNCTION_INFO *pFunctionInfo);
     quint64 getFunctionParameter(FUNCTION_INFO *pFunctionInfo,qint32 nNumber); // TODO call conversions
-
-signals:
-
-public slots:
 
 private:
     quint32 nProcessId;
