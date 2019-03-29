@@ -158,6 +158,7 @@ bool XDebugger::loadFile(QString sFileName, XDebugger::OPTIONS *pOptions)
                             if(mapBP.contains(nExceptionAddress))
                             {
                                 // TODO multithreads
+                                // Stop all another threads mb as options?
                                 BREAKPOINT bp=mapBP.value(nExceptionAddress);
                                 if(bp.nCount!=-1)
                                 {
