@@ -127,6 +127,7 @@ protected:
     virtual void onBreakPoint(BREAKPOINT *pBp){}
     virtual void onFunctionEnter(FUNCTION_INFO *pFunctionInfo){}
     virtual void onFunctionLeave(FUNCTION_INFO *pFunctionInfo){}
+    // TODO onException
 
     HANDLE getProcessHandle();
     bool addBP(qint64 nAddress,BP_TYPE bpType=BP_TYPE_CC,BP_INFO bpInfo=BP_INFO_UNKNOWN,qint32 nCount=-1,QVariant vInfo=QVariant());

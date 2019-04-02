@@ -255,7 +255,6 @@ bool XDebugger::loadFile(QString sFileName, XDebugger::OPTIONS *pOptions)
         }
     }
 
-
     return bSuccess;
 }
 
