@@ -194,7 +194,7 @@ bool XDebugger::loadFile(QString sFileName, XDebugger::OPTIONS *pOptions)
 
                                     onFunctionEnter(&functionInfo);
 
-                                    quint64 nID=QBinary::random64();
+                                    quint64 nID=XBinary::random64();
                                     mapAPI.insert(nID,functionInfo);
 
                                     addBP(functionInfo.nRetAddress,BP_TYPE_CC,BP_INFO_API_LEAVE,1,nID);
@@ -374,11 +374,11 @@ bool XDebugger::_addAPIHook(XDebugger::DLL_INFO dllInfo, QString sFunctionName)
         XProcessDevice xpd(this);
         if(xpd.openHandle(getProcessHandle(),dllInfo.nImageBase,dllInfo.nImageSize,QIODevice::ReadOnly))
         {
-            QPE pe(&xpd,true,dllInfo.nImageBase);
+            XPE pe(&xpd,true,dllInfo.nImageBase);
 
             if(pe.isValid())
             {
-                QPE::EXPORT_HEADER exportHeader=pe.getExport();
+                XPE::EXPORT_HEADER exportHeader=pe.getExport();
 
                 int nCount=exportHeader.listPositions.count();
 

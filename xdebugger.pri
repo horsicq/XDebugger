@@ -12,7 +12,7 @@ SOURCES += \
     include(../XProcess/xprocess.pri)
 }
 
-!contains(XCONFIG, Formats) {
-    XCONFIG += Formats
-    include(../Formats/qpe.pri)
+!contains(XCONFIG, xpe) {
+    XCONFIG += xpe
+    include(../Formats/xpe.pri)
 }

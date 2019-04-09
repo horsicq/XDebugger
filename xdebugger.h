@@ -27,7 +27,7 @@
 #include "windows.h"
 #include "xprocess.h"
 #include "xprocessdevice.h"
-#include "qpe.h"
+#include "xpe.h"
 
 class XDebugger : public QObject
 {
