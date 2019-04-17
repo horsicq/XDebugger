@@ -41,7 +41,7 @@ bool XDebugger::loadFile(QString sFileName, XDebugger::OPTIONS *pOptions)
 
     sturtupInfo.cb=sizeof(sturtupInfo);
 
-    if(CreateProcessW((const wchar_t*)sFileName.utf16(),0,0,0,0,nFlags,0,0,&sturtupInfo,&processInfo))
+    if(CreateProcessW((const wchar_t*)sFileName.utf16(),nullptr,nullptr,nullptr,0,nFlags,nullptr,nullptr,&sturtupInfo,&processInfo))
     {
         nProcessId=processInfo.dwProcessId;
 
