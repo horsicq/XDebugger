@@ -115,18 +115,18 @@ protected:
         qint64 nStackFrame;
     };
 
-    virtual void onCreateProcessDebugEvent(CREATEPROCESS_INFO *pCreateProcessInfo){}
-    virtual void onCreateThreadDebugEvent(CREATETHREAD_INFO *pCreateThreadInfo){}
-    virtual void onExitProcessDebugEvent(EXITPROCESS_INFO *pExitProcessInfo){}
-    virtual void onExitThreadDebugEvent(EXITTHREAD_INFO *pExitThreadInfo){}
-    virtual void onLoadDllDebugEvent(DLL_INFO *pDllInfo){}
-    virtual void onUnloadDllDebugEvent(DLL_INFO *pDllInfo){}
-    virtual void onOutputDebugStringEvent(DEBUG_EVENT *pDebugEvent){}
-    virtual void onRipEvent(DEBUG_EVENT *pDebugEvent){}
-    virtual void onEntryPoint(ENTRYPOINT_INFO *pEntryPointInfo){}
-    virtual void onBreakPoint(BREAKPOINT *pBp){}
-    virtual void onFunctionEnter(FUNCTION_INFO *pFunctionInfo){}
-    virtual void onFunctionLeave(FUNCTION_INFO *pFunctionInfo){}
+    virtual void onCreateProcessDebugEvent(CREATEPROCESS_INFO *pCreateProcessInfo) {}
+    virtual void onCreateThreadDebugEvent(CREATETHREAD_INFO *pCreateThreadInfo) {}
+    virtual void onExitProcessDebugEvent(EXITPROCESS_INFO *pExitProcessInfo) {}
+    virtual void onExitThreadDebugEvent(EXITTHREAD_INFO *pExitThreadInfo) {}
+    virtual void onLoadDllDebugEvent(DLL_INFO *pDllInfo) {}
+    virtual void onUnloadDllDebugEvent(DLL_INFO *pDllInfo) {}
+    virtual void onOutputDebugStringEvent(DEBUG_EVENT *pDebugEvent) {}
+    virtual void onRipEvent(DEBUG_EVENT *pDebugEvent) {}
+    virtual void onEntryPoint(ENTRYPOINT_INFO *pEntryPointInfo) {}
+    virtual void onBreakPoint(BREAKPOINT *pBp) {}
+    virtual void onFunctionEnter(FUNCTION_INFO *pFunctionInfo) {}
+    virtual void onFunctionLeave(FUNCTION_INFO *pFunctionInfo) {}
     // TODO onException
 
     HANDLE getProcessHandle();

@@ -36,8 +36,8 @@ bool XDebugger::loadFile(QString sFileName, XDebugger::OPTIONS *pOptions)
         nFlags|=CREATE_NO_WINDOW;
     }
 
-    PROCESS_INFORMATION processInfo={};
-    STARTUPINFOW sturtupInfo={};
+    PROCESS_INFORMATION processInfo= {};
+    STARTUPINFOW sturtupInfo= {};
 
     sturtupInfo.cb=sizeof(sturtupInfo);
 
@@ -47,13 +47,13 @@ bool XDebugger::loadFile(QString sFileName, XDebugger::OPTIONS *pOptions)
 
         if(ResumeThread(processInfo.hThread)!=(DWORD)-1)
         {
-            BREAKPOINT bpRestore={};
+            BREAKPOINT bpRestore= {};
             bool bRestoreBP=false;
             QMap<quint64,FUNCTION_INFO> mapAPI;
 
             while(true)
             {
-                DEBUG_EVENT DBGEvent={0};
+                DEBUG_EVENT DBGEvent= {0};
                 WaitForDebugEvent(&DBGEvent, INFINITE);
 
                 quint32 nStatus=DBG_CONTINUE;
@@ -77,7 +77,7 @@ bool XDebugger::loadFile(QString sFileName, XDebugger::OPTIONS *pOptions)
                     }
                     else if(DBGEvent.dwDebugEventCode==CREATE_THREAD_DEBUG_EVENT)
                     {
-                        CREATETHREAD_INFO createThreadInfo={};
+                        CREATETHREAD_INFO createThreadInfo= {};
 
                         createThreadInfo.hThread=DBGEvent.u.CreateThread.hThread;
                         createThreadInfo.nStartAddress=(qint64)DBGEvent.u.CreateThread.lpStartAddress;
@@ -89,7 +89,7 @@ bool XDebugger::loadFile(QString sFileName, XDebugger::OPTIONS *pOptions)
                     }
                     else if(DBGEvent.dwDebugEventCode==EXIT_PROCESS_DEBUG_EVENT)
                     {
-                        EXITPROCESS_INFO exitProcessInfo={};
+                        EXITPROCESS_INFO exitProcessInfo= {};
 
                         exitProcessInfo.nExitCode=(qint32)DBGEvent.u.ExitProcess.dwExitCode;
 
@@ -101,7 +101,7 @@ bool XDebugger::loadFile(QString sFileName, XDebugger::OPTIONS *pOptions)
                     }
                     else if(DBGEvent.dwDebugEventCode==EXIT_THREAD_DEBUG_EVENT)
                     {
-                        EXITTHREAD_INFO exitThreadInfo={};
+                        EXITTHREAD_INFO exitThreadInfo= {};
 
                         exitThreadInfo.nExitCode=(qint32)DBGEvent.u.ExitThread.dwExitCode;
 
@@ -111,7 +111,7 @@ bool XDebugger::loadFile(QString sFileName, XDebugger::OPTIONS *pOptions)
                     }
                     else if(DBGEvent.dwDebugEventCode==LOAD_DLL_DEBUG_EVENT)
                     {
-                        DLL_INFO dllInfo={};
+                        DLL_INFO dllInfo= {};
                         dllInfo.nImageBase=(qint64)DBGEvent.u.LoadDll.lpBaseOfDll;
                         dllInfo.nImageSize=XProcess::getImageSize(getProcessHandle(),dllInfo.nImageBase);
                         dllInfo.sFileName=XProcess::getFileNameByHandle(DBGEvent.u.LoadDll.hFile);
@@ -120,6 +120,7 @@ bool XDebugger::loadFile(QString sFileName, XDebugger::OPTIONS *pOptions)
                         mapDLL.insert(dllInfo.nImageBase,dllInfo);
 
                         QSetIterator<QString> i(stAPIHooks);
+
                         while(i.hasNext())
                         {
                             QString sFunctionName=i.next();
@@ -160,6 +161,7 @@ bool XDebugger::loadFile(QString sFileName, XDebugger::OPTIONS *pOptions)
                                 // TODO multithreads
                                 // Stop all another threads mb as options?
                                 BREAKPOINT bp=mapBP.value(nExceptionAddress);
+
                                 if(bp.nCount!=-1)
                                 {
                                     bp.nCount--;
@@ -177,7 +179,7 @@ bool XDebugger::loadFile(QString sFileName, XDebugger::OPTIONS *pOptions)
 
                                 if(bp.bpInfo==BP_INFO_ENTRYPOINT)
                                 {
-                                    ENTRYPOINT_INFO entryPointInfo={};
+                                    ENTRYPOINT_INFO entryPointInfo= {};
 
                                     entryPointInfo.nAddress=nExceptionAddress;
 
@@ -185,7 +187,7 @@ bool XDebugger::loadFile(QString sFileName, XDebugger::OPTIONS *pOptions)
                                 }
                                 else if(bp.bpInfo==BP_INFO_API_ENTER)
                                 {
-                                    FUNCTION_INFO functionInfo={};
+                                    FUNCTION_INFO functionInfo= {};
                                     functionInfo.hThread=mapThreads.value(DBGEvent.dwThreadId);
                                     functionInfo.nAddress=bp.nAddress;
                                     functionInfo.nRetAddress=_getRetAddress(getProcessHandle(),functionInfo.hThread);
@@ -267,7 +269,7 @@ bool XDebugger::addBP(qint64 nAddress, XDebugger::BP_TYPE bpType, XDebugger::BP_
 {
     bool bResult=false;
 
-    BREAKPOINT bp={};
+    BREAKPOINT bp= {};
     bp.nAddress=nAddress;
     bp.nCount=nCount;
     bp.bpInfo=bpInfo;
@@ -277,6 +279,7 @@ bool XDebugger::addBP(qint64 nAddress, XDebugger::BP_TYPE bpType, XDebugger::BP_
     if(bpType==BP_TYPE_CC)
     {
         bp.nOrigDataSize=1;
+
         if(XProcess::readData(getProcessHandle(),nAddress,bp.origData,bp.nOrigDataSize))
         {
             if(XProcess::writeData(getProcessHandle(),nAddress,"\xCC",bp.nOrigDataSize))
@@ -298,6 +301,7 @@ bool XDebugger::removeBP(qint64 nAddress)
     if(mapBP.contains(nAddress))
     {
         BREAKPOINT bp=mapBP.value(nAddress);
+
         if(bp.bpType==BP_TYPE_CC)
         {
             if(XProcess::writeData(getProcessHandle(),nAddress,bp.origData,bp.nOrigDataSize))
@@ -317,6 +321,7 @@ bool XDebugger::addAPIHook(QString sFunctionName)
     if(sFunctionName!="")
     {
         QMapIterator<qint64,DLL_INFO> i(mapDLL);
+
         while(i.hasNext())
         {
             i.next();
@@ -340,6 +345,7 @@ bool XDebugger::removeAPIHook(QString sFunctionName)
     if(sFunctionName!="")
     {
         QMutableMapIterator<qint64,BREAKPOINT> i(mapBP);
+
         while(i.hasNext())
         {
             i.next();
@@ -372,6 +378,7 @@ bool XDebugger::_addAPIHook(XDebugger::DLL_INFO dllInfo, QString sFunctionName)
     if(dllInfo.sName.toUpper()==sLibrary.toUpper())
     {
         XProcessDevice xpd(this);
+
         if(xpd.openHandle(getProcessHandle(),dllInfo.nImageBase,dllInfo.nImageSize,QIODevice::ReadOnly))
         {
             XPE pe(&xpd,true,dllInfo.nImageBase);
@@ -382,7 +389,7 @@ bool XDebugger::_addAPIHook(XDebugger::DLL_INFO dllInfo, QString sFunctionName)
 
                 int nCount=exportHeader.listPositions.count();
 
-                for(int i=0;i<nCount;i++)
+                for(int i=0; i<nCount; i++)
                 {
                     if(exportHeader.listPositions.at(i).sFunctionName==sFunction)
                     {
@@ -420,7 +427,7 @@ quint64 XDebugger::getFunctionParameter(XDebugger::FUNCTION_INFO *pFunctionInfo,
 void XDebugger::_clear()
 {
     nProcessId=0;
-    createProcessInfo={};
+    createProcessInfo= {};
     mapDLL.clear();
     mapBP.clear();
     mapThreads.clear();
@@ -429,15 +436,17 @@ void XDebugger::_clear()
 bool XDebugger::_setIP(HANDLE hThread, qint64 nAddress)
 {
     bool bResult=false;
-    CONTEXT context={0};
+    CONTEXT context= {0};
     context.ContextFlags=CONTEXT_ALL;
+
     if(GetThreadContext(hThread,&context))
     {
-    #ifndef X64CFG
+#ifndef X64CFG
         context.Eip=nAddress;
-    #else
+#else
         context.Rip=nAddress;
-    #endif
+#endif
+
         if(SetThreadContext(hThread,&context))
         {
             bResult=true;
@@ -450,14 +459,16 @@ bool XDebugger::_setIP(HANDLE hThread, qint64 nAddress)
 bool XDebugger::_setStep(HANDLE hThread)
 {
     bool bResult=false;
-    CONTEXT context={0};
+    CONTEXT context= {0};
     context.ContextFlags=CONTEXT_ALL;
+
     if(GetThreadContext(hThread,&context))
     {
         if(!(context.EFlags&0x100))
         {
             context.EFlags|=0x100;
         }
+
         if(SetThreadContext(hThread,&context))
         {
             bResult=true;
@@ -474,11 +485,11 @@ qint64 XDebugger::_getRetAddress(HANDLE hProcess, HANDLE hThread)
 
     if(nSP!=(quint64)-1)
     {
-    #ifndef X64CFG
+#ifndef X64CFG
         nResult=XProcess::read_uint32(hProcess,(qint64)nSP);
-    #else
+#else
         nResult=XProcess::read_uint64(hProcess,(qint64)nSP);
-    #endif
+#endif
     }
 
     return nResult;
@@ -488,15 +499,16 @@ quint64 XDebugger::_getAX(HANDLE hThread)
 {
     qint64 nResult=0;
 
-    CONTEXT context={0};
+    CONTEXT context= {0};
     context.ContextFlags=CONTEXT_ALL;
+
     if(GetThreadContext(hThread,&context))
     {
-    #ifndef X64CFG
+#ifndef X64CFG
         nResult=context.Eax;
-    #else
+#else
         nResult=context.Rax;
-    #endif
+#endif
     }
 
     return nResult;
@@ -506,15 +518,16 @@ quint64 XDebugger::_getSP(HANDLE hThread)
 {
     qint64 nResult=-1;
 
-    CONTEXT context={0};
+    CONTEXT context= {0};
     context.ContextFlags=CONTEXT_ALL;
+
     if(GetThreadContext(hThread,&context))
     {
-    #ifndef X64CFG
+#ifndef X64CFG
         nResult=context.Esp;
-    #else
+#else
         nResult=context.Rsp;
-    #endif
+#endif
     }
 
     return nResult;
