@@ -41,15 +41,6 @@ public:
     explicit XDebugger(QObject *parent = nullptr);
     bool loadFile(QString sFileName,OPTIONS *pOptions);
 
-private:
-    void _clear();
-    bool _setIP(HANDLE hThread,qint64 nAddress);
-    bool _setStep(HANDLE hThread);
-    qint64 _getRetAddress(HANDLE hProcess, HANDLE hThread);
-    quint64 _getAX(HANDLE hThread);
-    quint64 _getSP(HANDLE hThread);
-
-protected:
     struct DLL_INFO
     {
         QString sName;
@@ -57,6 +48,32 @@ protected:
         qint64 nImageBase;
         qint64 nImageSize;
     };
+    struct FUNCTION_INFO
+    {
+        qint64 nAddress;
+        qint64 nRetAddress;
+        QString sName;
+        HANDLE hThread;
+        qint64 nStackFrame;
+    };
+    HANDLE getProcessHandle();
+    QMap<qint64,DLL_INFO> *getMapDLL();
+    quint64 getFunctionResult(FUNCTION_INFO *pFunctionInfo);
+    quint64 getFunctionParameter(FUNCTION_INFO *pFunctionInfo,qint32 nNumber); // TODO call conversions
+    bool readData(qint64 nAddress,char *pBuffer,qint32 nBufferSize);
+    bool writeData(qint64 nAddress,char *pBuffer,qint32 nBufferSize);
+    QByteArray readArray(qint64 nAddress,qint32 nSize);
+    QString readAnsiString(qint64 nAddress,qint64 nMaxSize=256);
+
+    qint64 findSignature(qint64 nAddress, qint64 nSize, QString sSignature);
+
+private:
+    bool _setIP(HANDLE hThread,qint64 nAddress);
+    bool _setStep(HANDLE hThread);
+    qint64 _getRetAddress(HANDLE hProcess, HANDLE hThread);
+
+protected:
+
     struct CREATEPROCESS_INFO
     {
         HANDLE hProcess;
@@ -94,11 +111,13 @@ protected:
         BP_INFO_UNKNOWN=0,
         BP_INFO_ENTRYPOINT,
         BP_INFO_API_ENTER,
-        BP_INFO_API_LEAVE
+        BP_INFO_API_LEAVE,
+        BP_INFO_USER
     };
     struct BREAKPOINT
     {
         qint64 nAddress;
+        HANDLE hThread;
         qint32 nCount;
         BP_TYPE bpType;
         BP_INFO bpInfo;
@@ -106,14 +125,8 @@ protected:
         qint32 nOrigDataSize;
         QVariant vInfo;
     };
-    struct FUNCTION_INFO
-    {
-        qint64 nAddress;
-        qint64 nRetAddress;
-        QString sName;
-        HANDLE hThread;
-        qint64 nStackFrame;
-    };
+
+    virtual void _clear();
 
     virtual void onCreateProcessDebugEvent(CREATEPROCESS_INFO *pCreateProcessInfo) {}
     virtual void onCreateThreadDebugEvent(CREATETHREAD_INFO *pCreateThreadInfo) {}
@@ -129,14 +142,27 @@ protected:
     virtual void onFunctionLeave(FUNCTION_INFO *pFunctionInfo) {}
     // TODO onException
 
-    HANDLE getProcessHandle();
     bool addBP(qint64 nAddress,BP_TYPE bpType=BP_TYPE_CC,BP_INFO bpInfo=BP_INFO_UNKNOWN,qint32 nCount=-1,QVariant vInfo=QVariant());
     bool removeBP(qint64 nAddress);
     bool addAPIHook(QString sFunctionName);
     bool removeAPIHook(QString sFunctionName);
     bool _addAPIHook(DLL_INFO dllInfo,QString sFunctionName);
-    quint64 getFunctionResult(FUNCTION_INFO *pFunctionInfo);
-    quint64 getFunctionParameter(FUNCTION_INFO *pFunctionInfo,qint32 nNumber); // TODO call conversions
+
+    QString getFunctionNameByAddress(qint64 nAddress);
+
+    enum REG_NAME
+    {
+        REG_NAME_EAX=0,
+        REG_NAME_EBX,
+        REG_NAME_ECX,
+        REG_NAME_EDX,
+        REG_NAME_ESI,
+        REG_NAME_EDI,
+        REG_NAME_EBP,
+        REG_NAME_ESP,
+    };
+
+    quint64 getRegister(HANDLE hThread,REG_NAME regName);
 
 private:
     quint32 nProcessId;

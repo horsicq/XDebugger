@@ -119,6 +119,7 @@ bool XDebugger::loadFile(QString sFileName, XDebugger::OPTIONS *pOptions)
 
                         mapDLL.insert(dllInfo.nImageBase,dllInfo);
 
+                        // Add hooks if needed
                         QSetIterator<QString> i(stAPIHooks);
 
                         while(i.hasNext())
@@ -161,6 +162,7 @@ bool XDebugger::loadFile(QString sFileName, XDebugger::OPTIONS *pOptions)
                                 // TODO multithreads
                                 // Stop all another threads mb as options?
                                 BREAKPOINT bp=mapBP.value(nExceptionAddress);
+                                bp.hThread=mapThreads.value(DBGEvent.dwThreadId);
 
                                 if(bp.nCount!=-1)
                                 {
@@ -192,7 +194,7 @@ bool XDebugger::loadFile(QString sFileName, XDebugger::OPTIONS *pOptions)
                                     functionInfo.nAddress=bp.nAddress;
                                     functionInfo.nRetAddress=_getRetAddress(getProcessHandle(),functionInfo.hThread);
                                     functionInfo.sName=bp.vInfo.toString();
-                                    functionInfo.nStackFrame=(qint64)_getSP(functionInfo.hThread);
+                                    functionInfo.nStackFrame=(qint64)getRegister(functionInfo.hThread,REG_NAME_ESP);
 
                                     onFunctionEnter(&functionInfo);
 
@@ -265,6 +267,11 @@ HANDLE XDebugger::getProcessHandle()
     return createProcessInfo.hProcess;
 }
 
+QMap<qint64, XDebugger::DLL_INFO> *XDebugger::getMapDLL()
+{
+    return &mapDLL;
+}
+
 bool XDebugger::addBP(qint64 nAddress, XDebugger::BP_TYPE bpType, XDebugger::BP_INFO bpInfo, qint32 nCount, QVariant vInfo)
 {
     bool bResult=false;
@@ -280,9 +287,9 @@ bool XDebugger::addBP(qint64 nAddress, XDebugger::BP_TYPE bpType, XDebugger::BP_
     {
         bp.nOrigDataSize=1;
 
-        if(XProcess::readData(getProcessHandle(),nAddress,bp.origData,bp.nOrigDataSize))
+        if(readData(nAddress,bp.origData,bp.nOrigDataSize))
         {
-            if(XProcess::writeData(getProcessHandle(),nAddress,"\xCC",bp.nOrigDataSize))
+            if(writeData(nAddress,"\xCC",bp.nOrigDataSize))
             {
                 mapBP.insert(nAddress,bp);
 
@@ -304,7 +311,7 @@ bool XDebugger::removeBP(qint64 nAddress)
 
         if(bp.bpType==BP_TYPE_CC)
         {
-            if(XProcess::writeData(getProcessHandle(),nAddress,bp.origData,bp.nOrigDataSize))
+            if(writeData(nAddress,bp.origData,bp.nOrigDataSize))
             {
                 mapBP.remove(nAddress);
 
@@ -381,7 +388,7 @@ bool XDebugger::_addAPIHook(XDebugger::DLL_INFO dllInfo, QString sFunctionName)
 
         if(xpd.openHandle(getProcessHandle(),dllInfo.nImageBase,dllInfo.nImageSize,QIODevice::ReadOnly))
         {
-            XPE pe(&xpd,true,dllInfo.nImageBase);
+            XPE pe(&xpd,true,dllInfo.nImageBase); // TODO Check
 
             if(pe.isValid())
             {
@@ -407,7 +414,7 @@ bool XDebugger::_addAPIHook(XDebugger::DLL_INFO dllInfo, QString sFunctionName)
 
 quint64 XDebugger::getFunctionResult(XDebugger::FUNCTION_INFO *pFunctionInfo)
 {
-    return _getAX(pFunctionInfo->hThread);
+    return getRegister(pFunctionInfo->hThread,REG_NAME_EAX);
 }
 
 quint64 XDebugger::getFunctionParameter(XDebugger::FUNCTION_INFO *pFunctionInfo, qint32 nNumber)
@@ -418,8 +425,122 @@ quint64 XDebugger::getFunctionParameter(XDebugger::FUNCTION_INFO *pFunctionInfo,
     qint64 _nStackAddress=pFunctionInfo->nStackFrame+4+4*nNumber;
     nResult=XProcess::read_uint32(getProcessHandle(),_nStackAddress);
 #else
-    // TODO
+    // TODO x64
 #endif
+
+    return nResult;
+}
+
+bool XDebugger::readData(qint64 nAddress, char *pBuffer, qint32 nBufferSize)
+{
+    return XProcess::readData(getProcessHandle(),nAddress,pBuffer,nBufferSize);
+}
+
+bool XDebugger::writeData(qint64 nAddress, char *pBuffer, qint32 nBufferSize)
+{
+    return XProcess::writeData(getProcessHandle(),nAddress,pBuffer,nBufferSize);
+}
+
+QByteArray XDebugger::readArray(qint64 nAddress, qint32 nSize)
+{
+    return XProcess::readArray(getProcessHandle(),nAddress,nSize);
+}
+
+QString XDebugger::readAnsiString(qint64 nAddress, qint64 nMaxSize)
+{
+    return XProcess::readAnsiString(getProcessHandle(),nAddress,nMaxSize);
+}
+
+qint64 XDebugger::findSignature(qint64 nAddress, qint64 nSize, QString sSignature)
+{
+    qint64 nResult=-1;
+
+    XProcessDevice xpd(this);
+
+    if(xpd.openHandle(getProcessHandle(),nAddress,nSize,QIODevice::ReadOnly))
+    {
+        XBinary binary(&xpd,true,nAddress);
+
+        qint64 nOffset=binary.find_signature(0,nSize,sSignature);
+        nResult=binary.offsetToAddress(nOffset);
+
+        xpd.close();
+    }
+
+    return nResult;
+}
+
+QString XDebugger::getFunctionNameByAddress(qint64 nAddress)
+{
+    QString sResult;
+
+    QMapIterator<qint64,DLL_INFO> i(mapDLL);
+
+    while(i.hasNext())
+    {
+        i.next();
+
+        DLL_INFO dllInfo=i.value();
+
+        if((dllInfo.nImageBase<=nAddress)&&(nAddress<dllInfo.nImageBase+dllInfo.nImageSize))
+        {
+            XProcessDevice xpd(this);
+
+            if(xpd.openHandle(getProcessHandle(),dllInfo.nImageBase,dllInfo.nImageSize,QIODevice::ReadOnly))
+            {
+                XPE pe(&xpd,true,dllInfo.nImageBase);
+
+                if(pe.isValid())
+                {
+                    XPE::EXPORT_HEADER exportHeader=pe.getExport();
+
+                    int nCount=exportHeader.listPositions.count();
+
+                    for(int i=0;i<nCount;i++)
+                    {
+                        if(exportHeader.listPositions.at(i).nAddress==nAddress)
+                        {
+                            sResult=exportHeader.sName.toUpper()+"#"+exportHeader.listPositions.at(i).sFunctionName;
+                            break;
+                        }
+                    }
+                }
+
+                xpd.close();
+            }
+
+            break;
+        }
+    }
+
+    return sResult;
+}
+
+quint64 XDebugger::getRegister(HANDLE hThread, XDebugger::REG_NAME regName)
+{
+    qint64 nResult=0;
+
+    CONTEXT context= {0};
+    context.ContextFlags=CONTEXT_ALL;
+
+    if(GetThreadContext(hThread,&context))
+    {
+#ifndef X64CFG
+        switch(regName)
+        {
+            case REG_NAME_EAX:  nResult=context.Eax;    break;
+            case REG_NAME_EBX:  nResult=context.Ebx;    break;
+            case REG_NAME_ECX:  nResult=context.Ebx;    break;
+            case REG_NAME_EDX:  nResult=context.Edx;    break;
+            case REG_NAME_ESI:  nResult=context.Esi;    break;
+            case REG_NAME_EDI:  nResult=context.Edi;    break;
+            case REG_NAME_EBP:  nResult=context.Ebp;    break;
+            case REG_NAME_ESP:  nResult=context.Esp;    break;
+        }
+#else
+        // TODO
+#endif
+    }
 
     return nResult;
 }
@@ -481,7 +602,7 @@ bool XDebugger::_setStep(HANDLE hThread)
 qint64 XDebugger::_getRetAddress(HANDLE hProcess, HANDLE hThread)
 {
     qint64 nResult=-1;
-    quint64 nSP=_getSP(hThread);
+    quint64 nSP=getRegister(hThread,REG_NAME_ESP);
 
     if(nSP!=(quint64)-1)
     {
@@ -489,44 +610,6 @@ qint64 XDebugger::_getRetAddress(HANDLE hProcess, HANDLE hThread)
         nResult=XProcess::read_uint32(hProcess,(qint64)nSP);
 #else
         nResult=XProcess::read_uint64(hProcess,(qint64)nSP);
-#endif
-    }
-
-    return nResult;
-}
-
-quint64 XDebugger::_getAX(HANDLE hThread)
-{
-    qint64 nResult=0;
-
-    CONTEXT context= {0};
-    context.ContextFlags=CONTEXT_ALL;
-
-    if(GetThreadContext(hThread,&context))
-    {
-#ifndef X64CFG
-        nResult=context.Eax;
-#else
-        nResult=context.Rax;
-#endif
-    }
-
-    return nResult;
-}
-
-quint64 XDebugger::_getSP(HANDLE hThread)
-{
-    qint64 nResult=-1;
-
-    CONTEXT context= {0};
-    context.ContextFlags=CONTEXT_ALL;
-
-    if(GetThreadContext(hThread,&context))
-    {
-#ifndef X64CFG
-        nResult=context.Esp;
-#else
-        nResult=context.Rsp;
 #endif
     }
 
