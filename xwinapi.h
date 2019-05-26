@@ -8,7 +8,7 @@ class XWinAPI : public XDebugger
 {
     Q_OBJECT
 public:
-    explicit XWinAPI(QObject *parent = 0);
+    explicit XWinAPI(QObject *parent=nullptr);
 
     struct KERNEL32_GETPROCADDRESS
     {
@@ -22,10 +22,6 @@ public:
     };
 
     static KERNEL32_GETPROCADDRESS handle_Kernel32_getProcAddress(XDebugger *pDebugger,XDebugger::FUNCTION_INFO *pFunctionInfo);
-
-signals:
-
-public slots:
 };
 
 #endif // XWINAPI_H

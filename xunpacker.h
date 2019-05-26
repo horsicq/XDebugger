@@ -18,14 +18,7 @@ public:
         QString sFunction;
     };
 
-    explicit XUnpacker(QObject *parent = 0);
-
-private:
-
-
-signals:
-
-public slots:
+    explicit XUnpacker(QObject *parent=nullptr);
 
 protected:
     virtual void _clear();
