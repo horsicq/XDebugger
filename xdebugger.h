@@ -38,7 +38,7 @@ public:
         bool bShowWindow;
     };
 
-    explicit XDebugger(QObject *parent = nullptr);
+    explicit XDebugger(QObject *parent=nullptr);
     bool loadFile(QString sFileName,OPTIONS *pOptions);
 
     struct DLL_INFO
@@ -79,7 +79,8 @@ protected:
         HANDLE hProcess;
         HANDLE hThread;
         QString sFileName;
-        qint64 nBaseOfImage;
+        qint64 nImageBase;
+        qint64 nImageSize;
         qint64 nStartAddress;
         qint64 nThreadLocalBase;
     };
@@ -163,6 +164,7 @@ protected:
     };
 
     quint64 getRegister(HANDLE hThread,REG_NAME regName);
+    CREATEPROCESS_INFO *getCreateProcessInfo();
 
 private:
     quint32 nProcessId;

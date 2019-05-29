@@ -18,7 +18,14 @@ public:
         QString sFunction;
     };
 
+    struct DUMP_OPTIONS
+    {
+        qint64 nEntryPointAddress;
+    };
+
     explicit XUnpacker(QObject *parent=nullptr);
+
+    bool dumpToFile(QString sFileName,DUMP_OPTIONS *pDumpOptions);
 
 protected:
     virtual void _clear();

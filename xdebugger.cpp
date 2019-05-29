@@ -64,7 +64,8 @@ bool XDebugger::loadFile(QString sFileName, XDebugger::OPTIONS *pOptions)
                     {
                         createProcessInfo.hProcess=DBGEvent.u.CreateProcessInfo.hProcess;
                         createProcessInfo.hThread=DBGEvent.u.CreateProcessInfo.hThread;
-                        createProcessInfo.nBaseOfImage=(qint64)DBGEvent.u.CreateProcessInfo.lpBaseOfImage;
+                        createProcessInfo.nImageBase=(qint64)DBGEvent.u.CreateProcessInfo.lpBaseOfImage;
+                        createProcessInfo.nImageSize=XProcess::getImageSize(getProcessHandle(),createProcessInfo.nImageBase);
                         createProcessInfo.nStartAddress=(qint64)DBGEvent.u.CreateProcessInfo.lpStartAddress;
                         createProcessInfo.sFileName=XProcess::getFileNameByHandle(DBGEvent.u.CreateProcessInfo.hFile);
                         createProcessInfo.nThreadLocalBase=(qint64)DBGEvent.u.CreateProcessInfo.lpThreadLocalBase;
@@ -545,6 +546,11 @@ quint64 XDebugger::getRegister(HANDLE hThread, XDebugger::REG_NAME regName)
     return nResult;
 }
 
+XDebugger::CREATEPROCESS_INFO *XDebugger::getCreateProcessInfo()
+{
+    return &createProcessInfo;
+}
+
 void XDebugger::_clear()
 {
     nProcessId=0;
@@ -567,7 +573,6 @@ bool XDebugger::_setIP(HANDLE hThread, qint64 nAddress)
 #else
         context.Rip=nAddress;
 #endif
-
         if(SetThreadContext(hThread,&context))
         {
             bResult=true;
