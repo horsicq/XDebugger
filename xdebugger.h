@@ -62,15 +62,21 @@ public:
     quint64 getFunctionParameter(FUNCTION_INFO *pFunctionInfo,qint32 nNumber); // TODO call conversions
     bool readData(qint64 nAddress,char *pBuffer,qint32 nBufferSize);
     bool writeData(qint64 nAddress,char *pBuffer,qint32 nBufferSize);
-    QByteArray readArray(qint64 nAddress,qint32 nSize);
-    QString readAnsiString(qint64 nAddress,qint64 nMaxSize=256);
+    QByteArray read_array(qint64 nAddress,qint32 nSize);
+    QString read_ansiString(qint64 nAddress,qint64 nMaxSize=256);
+    QString read_unicodeString(qint64 nAddress,qint64 nMaxSize=256);
+    quint32 read_uint32(qint64 nAddress);
+    quint64 read_uint64(qint64 nAddress);
 
     qint64 findSignature(qint64 nAddress, qint64 nSize, QString sSignature);
+    void skipFunction(HANDLE hThread, quint32 nNumberOfParameters,quint64 nResult);
+
+    void stepInto(HANDLE hThread,QVariant vInfo=QVariant());
 
 private:
     bool _setIP(HANDLE hThread,qint64 nAddress);
     bool _setStep(HANDLE hThread);
-    qint64 _getRetAddress(HANDLE hProcess, HANDLE hThread);
+    qint64 _getRetAddress(HANDLE hThread);
 
 protected:
 
@@ -84,6 +90,12 @@ protected:
         qint64 nStartAddress;
         qint64 nThreadLocalBase;
     };
+    struct STATS
+    {
+        bool bStepInto;
+        QVariant vStepIntoInfo;
+    };
+
     struct CREATETHREAD_INFO
     {
         HANDLE hThread;
@@ -101,6 +113,7 @@ protected:
     struct ENTRYPOINT_INFO
     {
         qint64 nAddress;
+        HANDLE hThread;
     };
     enum BP_TYPE
     {
@@ -126,6 +139,12 @@ protected:
         qint32 nOrigDataSize;
         QVariant vInfo;
     };
+    struct STEP
+    {
+        qint64 nAddress;
+        HANDLE hThread;
+        QVariant vInfo;
+    };
 
     virtual void _clear();
 
@@ -141,6 +160,7 @@ protected:
     virtual void onBreakPoint(BREAKPOINT *pBp) {}
     virtual void onFunctionEnter(FUNCTION_INFO *pFunctionInfo) {}
     virtual void onFunctionLeave(FUNCTION_INFO *pFunctionInfo) {}
+    virtual void onStep(STEP *pStep) {}
     // TODO onException
 
     bool addBP(qint64 nAddress,BP_TYPE bpType=BP_TYPE_CC,BP_INFO bpInfo=BP_INFO_UNKNOWN,qint32 nCount=-1,QVariant vInfo=QVariant());
@@ -161,14 +181,17 @@ protected:
         REG_NAME_EDI,
         REG_NAME_EBP,
         REG_NAME_ESP,
+        REG_NAME_EIP
     };
 
     quint64 getRegister(HANDLE hThread,REG_NAME regName);
+    bool setRegister(HANDLE hThread,REG_NAME regName,quint64 nValue);
     CREATEPROCESS_INFO *getCreateProcessInfo();
 
 private:
     quint32 nProcessId;
     CREATEPROCESS_INFO createProcessInfo;
+    STATS stats;
     QMap<qint64,DLL_INFO> mapDLL;
     QMap<qint64,BREAKPOINT> mapBP;
     QMap<quint32,HANDLE> mapThreads;

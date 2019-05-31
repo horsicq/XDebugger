@@ -153,6 +153,7 @@ bool XDebugger::loadFile(QString sFileName, XDebugger::OPTIONS *pOptions)
                         EXCEPTION_DEBUG_INFO edi=DBGEvent.u.Exception;
                         qint64 nExceptionAddress=(qint64)edi.ExceptionRecord.ExceptionAddress;
                         quint32 nExceptionCode=(quint32)edi.ExceptionRecord.ExceptionCode;
+                        HANDLE hThread=mapThreads.value(DBGEvent.dwThreadId);
 
                         nStatus=DBG_EXCEPTION_NOT_HANDLED;
 
@@ -163,7 +164,7 @@ bool XDebugger::loadFile(QString sFileName, XDebugger::OPTIONS *pOptions)
                                 // TODO multithreads
                                 // Stop all another threads mb as options?
                                 BREAKPOINT bp=mapBP.value(nExceptionAddress);
-                                bp.hThread=mapThreads.value(DBGEvent.dwThreadId);
+                                bp.hThread=hThread;
 
                                 if(bp.nCount!=-1)
                                 {
@@ -185,15 +186,16 @@ bool XDebugger::loadFile(QString sFileName, XDebugger::OPTIONS *pOptions)
                                     ENTRYPOINT_INFO entryPointInfo= {};
 
                                     entryPointInfo.nAddress=nExceptionAddress;
+                                    entryPointInfo.hThread=hThread;
 
                                     onEntryPoint(&entryPointInfo);
                                 }
                                 else if(bp.bpInfo==BP_INFO_API_ENTER)
                                 {
                                     FUNCTION_INFO functionInfo= {};
-                                    functionInfo.hThread=mapThreads.value(DBGEvent.dwThreadId);
+                                    functionInfo.hThread=hThread;
                                     functionInfo.nAddress=bp.nAddress;
-                                    functionInfo.nRetAddress=_getRetAddress(getProcessHandle(),functionInfo.hThread);
+                                    functionInfo.nRetAddress=_getRetAddress(hThread);
                                     functionInfo.sName=bp.vInfo.toString();
                                     functionInfo.nStackFrame=(qint64)getRegister(functionInfo.hThread,REG_NAME_ESP);
 
@@ -231,6 +233,22 @@ bool XDebugger::loadFile(QString sFileName, XDebugger::OPTIONS *pOptions)
                             {
                                 addBP(bpRestore.nAddress,bpRestore.bpType,bpRestore.bpInfo,bpRestore.nCount,bpRestore.vInfo);
                                 bRestoreBP=false;
+                                nStatus=DBG_CONTINUE;
+                            }
+
+                            if(stats.bStepInto)
+                            {
+                                STEP step={};
+
+                                step.nAddress=nExceptionAddress;
+                                step.hThread=hThread;
+                                step.vInfo=stats.vStepIntoInfo;
+
+                                stats.bStepInto=false;
+                                stats.vStepIntoInfo.clear();
+
+                                onStep(&step);
+
                                 nStatus=DBG_CONTINUE;
                             }
                         }
@@ -424,7 +442,7 @@ quint64 XDebugger::getFunctionParameter(XDebugger::FUNCTION_INFO *pFunctionInfo,
 
 #ifndef X64CFG
     qint64 _nStackAddress=pFunctionInfo->nStackFrame+4+4*nNumber;
-    nResult=XProcess::read_uint32(getProcessHandle(),_nStackAddress);
+    nResult=read_uint32(_nStackAddress);
 #else
     // TODO x64
 #endif
@@ -442,14 +460,29 @@ bool XDebugger::writeData(qint64 nAddress, char *pBuffer, qint32 nBufferSize)
     return XProcess::writeData(getProcessHandle(),nAddress,pBuffer,nBufferSize);
 }
 
-QByteArray XDebugger::readArray(qint64 nAddress, qint32 nSize)
+QByteArray XDebugger::read_array(qint64 nAddress, qint32 nSize)
 {
-    return XProcess::readArray(getProcessHandle(),nAddress,nSize);
+    return XProcess::read_array(getProcessHandle(),nAddress,nSize);
 }
 
-QString XDebugger::readAnsiString(qint64 nAddress, qint64 nMaxSize)
+QString XDebugger::read_ansiString(qint64 nAddress, qint64 nMaxSize)
 {
-    return XProcess::readAnsiString(getProcessHandle(),nAddress,nMaxSize);
+    return XProcess::read_ansiString(getProcessHandle(),nAddress,nMaxSize);
+}
+
+QString XDebugger::read_unicodeString(qint64 nAddress, qint64 nMaxSize)
+{
+    return XProcess::read_unicodeString(getProcessHandle(),nAddress,nMaxSize);
+}
+
+quint32 XDebugger::read_uint32(qint64 nAddress)
+{
+    return XProcess::read_uint32(getProcessHandle(),nAddress);
+}
+
+quint64 XDebugger::read_uint64(qint64 nAddress)
+{
+    return XProcess::read_uint64(getProcessHandle(),nAddress);
 }
 
 qint64 XDebugger::findSignature(qint64 nAddress, qint64 nSize, QString sSignature)
@@ -469,6 +502,32 @@ qint64 XDebugger::findSignature(qint64 nAddress, qint64 nSize, QString sSignatur
     }
 
     return nResult;
+}
+
+void XDebugger::skipFunction(HANDLE hThread, quint32 nNumberOfParameters, quint64 nResult)
+{
+#ifndef X64CFG
+        quint32 nESP=getRegister(hThread,REG_NAME_ESP);
+        quint32 nRET=read_uint32(nESP);
+        nESP+=4+4*nNumberOfParameters;
+        setRegister(hThread,REG_NAME_ESP,nESP);
+        setRegister(hThread,REG_NAME_EIP,nRET);
+        setRegister(hThread,REG_NAME_EAX,(quint32)nResult);
+#else
+    //        quint64 nRSP=getRegister_x86(UC_X86_REG_RSP);
+    //        quint64 nRET=read_uint64(nRSP);
+    //        int _nNumbersOfArgs=qMax(nNumberOfArgs-4,0);
+    //        nRSP+=8+8*_nNumbersOfArgs;
+    //        setRegister_x86(UC_X86_REG_RSP,nRSP);
+    //        setRegister_x86(UC_X86_REG_RIP,nRET);
+#endif
+}
+
+void XDebugger::stepInto(HANDLE hThread,QVariant vInfo)
+{
+    _setStep(hThread);
+    stats.bStepInto=true;
+    stats.vStepIntoInfo=vInfo;
 }
 
 QString XDebugger::getFunctionNameByAddress(qint64 nAddress)
@@ -537,6 +596,7 @@ quint64 XDebugger::getRegister(HANDLE hThread, XDebugger::REG_NAME regName)
             case REG_NAME_EDI:  nResult=context.Edi;    break;
             case REG_NAME_EBP:  nResult=context.Ebp;    break;
             case REG_NAME_ESP:  nResult=context.Esp;    break;
+            case REG_NAME_EIP:  nResult=context.Eip;    break;
         }
 #else
         // TODO
@@ -544,6 +604,40 @@ quint64 XDebugger::getRegister(HANDLE hThread, XDebugger::REG_NAME regName)
     }
 
     return nResult;
+}
+
+bool XDebugger::setRegister(HANDLE hThread, XDebugger::REG_NAME regName, quint64 nValue)
+{
+    bool bResult=false;
+
+    CONTEXT context= {0};
+    context.ContextFlags=CONTEXT_ALL;
+
+    if(GetThreadContext(hThread,&context))
+    {
+#ifndef X64CFG
+        switch(regName)
+        {
+            case REG_NAME_EAX:  context.Eax=(quint32)nValue;    break;
+            case REG_NAME_EBX:  context.Ebx=(quint32)nValue;    break;
+            case REG_NAME_ECX:  context.Ebx=(quint32)nValue;    break;
+            case REG_NAME_EDX:  context.Edx=(quint32)nValue;    break;
+            case REG_NAME_ESI:  context.Esi=(quint32)nValue;    break;
+            case REG_NAME_EDI:  context.Edi=(quint32)nValue;    break;
+            case REG_NAME_EBP:  context.Ebp=(quint32)nValue;    break;
+            case REG_NAME_ESP:  context.Esp=(quint32)nValue;    break;
+            case REG_NAME_EIP:  context.Eip=(quint32)nValue;    break;
+        }
+#else
+        // TODO
+#endif
+        if(SetThreadContext(hThread,&context))
+        {
+            bResult=true;
+        }
+    }
+
+    return bResult;
 }
 
 XDebugger::CREATEPROCESS_INFO *XDebugger::getCreateProcessInfo()
@@ -554,7 +648,8 @@ XDebugger::CREATEPROCESS_INFO *XDebugger::getCreateProcessInfo()
 void XDebugger::_clear()
 {
     nProcessId=0;
-    createProcessInfo= {};
+    createProcessInfo={};
+    stats={};
     mapDLL.clear();
     mapBP.clear();
     mapThreads.clear();
@@ -604,7 +699,7 @@ bool XDebugger::_setStep(HANDLE hThread)
     return bResult;
 }
 
-qint64 XDebugger::_getRetAddress(HANDLE hProcess, HANDLE hThread)
+qint64 XDebugger::_getRetAddress(HANDLE hThread)
 {
     qint64 nResult=-1;
     quint64 nSP=getRegister(hThread,REG_NAME_ESP);
@@ -612,9 +707,9 @@ qint64 XDebugger::_getRetAddress(HANDLE hProcess, HANDLE hThread)
     if(nSP!=(quint64)-1)
     {
 #ifndef X64CFG
-        nResult=XProcess::read_uint32(hProcess,(qint64)nSP);
+        nResult=read_uint32((qint64)nSP);
 #else
-        nResult=XProcess::read_uint64(hProcess,(qint64)nSP);
+        nResult=read_uint64((qint64)nSP);
 #endif
     }
 
