@@ -29,9 +29,15 @@ bool XDebugger::loadFile(QString sFileName, XDebugger::OPTIONS *pOptions)
 {
     bool bSuccess=false;
     _clear();
+
+    if(pOptions)
+    {
+        options=*pOptions;
+    }
+
     qint32 nFlags=DEBUG_PROCESS|DEBUG_ONLY_THIS_PROCESS|CREATE_SUSPENDED;
 
-    if(!pOptions->bShowWindow)
+    if(!options.bShowWindow)
     {
         nFlags|=CREATE_NO_WINDOW;
     }
@@ -647,6 +653,7 @@ XDebugger::CREATEPROCESS_INFO *XDebugger::getCreateProcessInfo()
 
 void XDebugger::_clear()
 {
+    options={};
     nProcessId=0;
     createProcessInfo={};
     stats={};

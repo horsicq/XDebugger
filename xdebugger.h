@@ -38,6 +38,13 @@ public:
         bool bShowWindow;
     };
 
+    enum MESSAGE_TYPE
+    {
+        MESSAGE_TYPE_INFO,
+        MESSAGE_TYPE_WARNING,
+        MESSAGE_TYPE_ERROR
+    };
+
     explicit XDebugger(QObject *parent=nullptr);
     bool loadFile(QString sFileName,OPTIONS *pOptions);
 
@@ -188,7 +195,11 @@ protected:
     bool setRegister(HANDLE hThread,REG_NAME regName,quint64 nValue);
     CREATEPROCESS_INFO *getCreateProcessInfo();
 
+signals:
+    void messageString(MESSAGE_TYPE type,QString sText);
+
 private:
+    XDebugger::OPTIONS options;
     quint32 nProcessId;
     CREATEPROCESS_INFO createProcessInfo;
     STATS stats;
