@@ -2,6 +2,7 @@
 #define XUNPACKER_H
 
 #include <QObject>
+#include <QBuffer>
 #include "xdebugger.h"
 #include "xwinapi.h"
 

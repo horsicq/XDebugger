@@ -16,23 +16,87 @@ bool XUnpacker::dumpToFile(QString sFileName, XUnpacker::DUMP_OPTIONS *pDumpOpti
 
     char buffer[N_BUFFER_SIZE];
 
+    QList<XProcess::MEMORY_REGION> listMR;
+    XProcess::MEMORY_REGION mr={};
+
+    int _bData=false;
+
     // The first block is a header
     for(qint64 nCurrentAddress=nImageBase+0x1000;nCurrentAddress<nImageBase+nImageSize;nCurrentAddress+=N_BUFFER_SIZE)
     {
         // TODO handle errors
         XProcess::MEMORY_FLAGS mf=XProcess::getMemoryFlags(getProcessHandle(),nCurrentAddress);
+
+        bool bCreateNewSection=false;
+        if(     (mf.bExecute!=mr.mf.bExecute)||
+                (mf.bRead!=mr.mf.bRead)||
+                (mf.bWrite!=mr.mf.bWrite))
+        {
+            bCreateNewSection=true;
+        }
+
+        if(nCurrentAddress+N_BUFFER_SIZE>=nImageBase+nImageSize)
+        {
+            bCreateNewSection=true;
+        }
+
+        bool bData=false;
+
         if(readData(nCurrentAddress,buffer,N_BUFFER_SIZE))
         {
             // TODO !!!
             if(XBinary::isEmptyData(buffer,N_BUFFER_SIZE))
             {
+                bData=false;
                 qDebug("Empty data: %x",nCurrentAddress);
             }
             else
             {
+                bData=true;
                 qDebug("Not empty data: %x",nCurrentAddress);
             }
         }
+
+        if(!bCreateNewSection)
+        {
+            if((!_bData)&&(bData))
+            {
+                bCreateNewSection=true;
+            }
+        }
+
+        _bData=bData;
+
+        if(bData)
+        {
+            mr.nSize+=N_BUFFER_SIZE;
+        }
+
+        if(bCreateNewSection)
+        {
+            if(mr.nAddress)
+            {
+                listMR.append(mr);
+            }
+            mr.nAddress=nCurrentAddress;
+            mr.nSize=0;
+            mr.mf=mf;
+        }
+    }
+
+    QByteArray baHeader=XPE::createHeaderStub(0);
+
+    // Create file;
+    QBuffer _buffer(&baHeader);
+
+    if(_buffer.open(QIODevice::ReadWrite))
+    {
+        XPE pe(&_buffer);
+
+        XPE_DEF::IMAGE_SECTION_HEADER ish={};
+        pe.addSection(&ish,"123",3);
+
+        _buffer.close();
     }
 
     return bResult;
