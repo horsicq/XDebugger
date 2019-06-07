@@ -84,19 +84,27 @@ bool XUnpacker::dumpToFile(QString sFileName, XUnpacker::DUMP_OPTIONS *pDumpOpti
         }
     }
 
-    QByteArray baHeader=XPE::createHeaderStub(0);
+    XBinary::removeFile(sFileName);
 
-    // Create file;
-    QBuffer _buffer(&baHeader);
+    XPE::HEADER_OPTIONS headerOptions={};
+    headerOptions.nFileAlignment=0x200;
+    headerOptions.nSectionAlignment=0x1000;
 
-    if(_buffer.open(QIODevice::ReadWrite))
+    QByteArray baHeader=XPE::createHeaderStub(&headerOptions);
+
+    QFile file;
+    file.setFileName(sFileName);
+
+    if(file.open(QIODevice::ReadWrite))
     {
-        XPE pe(&_buffer);
+        file.write(baHeader.data(),baHeader.size());
+
+        XPE pe(&file);
 
         XPE_DEF::IMAGE_SECTION_HEADER ish={};
         pe.addSection(&ish,"123",3);
 
-        _buffer.close();
+        file.close();
     }
 
     return bResult;
