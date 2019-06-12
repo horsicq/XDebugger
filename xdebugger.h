@@ -77,7 +77,6 @@ public:
 
     qint64 findSignature(qint64 nAddress, qint64 nSize, QString sSignature);
     void skipFunction(HANDLE hThread, quint32 nNumberOfParameters,quint64 nResult);
-
     void stepInto(HANDLE hThread,QVariant vInfo=QVariant());
 
 private:
@@ -86,7 +85,6 @@ private:
     qint64 _getRetAddress(HANDLE hThread);
 
 protected:
-
     struct CREATEPROCESS_INFO
     {
         HANDLE hProcess;
