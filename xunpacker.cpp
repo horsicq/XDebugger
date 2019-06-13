@@ -84,6 +84,33 @@ bool XUnpacker::dumpToFile(QString sFileName, XUnpacker::DUMP_OPTIONS *pDumpOpti
         }
     }
 
+    // Fix
+    QList<XPE_DEF::IMAGE_SECTION_HEADER> listSH;
+
+    int nCountMR=listMR.count();
+
+    for(int i=0;i<nCountMR;i++)
+    {
+        XPE_DEF::IMAGE_SECTION_HEADER record={};
+
+        record.VirtualAddress=listMR.at(i).nAddress-nImageBase;
+
+        if(i==(nCountMR-1))
+        {
+            record.Misc.VirtualSize=nImageSize-record.VirtualAddress;
+        }
+        else
+        {
+            record.Misc.VirtualSize=(listMR.at(i+1).nAddress-nImageBase)-record.VirtualAddress;
+        }
+
+        record.PointerToRawData=0; // Auto
+        record.SizeOfRawData=listMR.at(i).nSize;
+//        record.Characteristics= TODO
+
+        listSH.append(record);
+    }
+
     XBinary::removeFile(sFileName);
 
     XPE::HEADER_OPTIONS headerOptions={};
@@ -101,8 +128,17 @@ bool XUnpacker::dumpToFile(QString sFileName, XUnpacker::DUMP_OPTIONS *pDumpOpti
 
         XPE pe(&file);
 
-        XPE_DEF::IMAGE_SECTION_HEADER ish={};
-        pe.addSection(&ish,"123",3);
+        for(int i=0;i<nCountMR;i++)
+        {
+            QByteArray baSection=read_array(listMR.at(i).nAddress,listMR.at(i).nSize);
+
+            XPE_DEF::IMAGE_SECTION_HEADER ish=listSH.at(i);
+
+            pe.addSection(&ish,baSection.data(),baSection.size());
+        }
+
+
+
 
         file.close();
     }
