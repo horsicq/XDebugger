@@ -94,6 +94,10 @@ protected:
         qint64 nImageSize;
         qint64 nStartAddress;
         qint64 nThreadLocalBase;
+
+        // From Header
+        quint16 nMachine;
+        quint16 nCharacteristics;
     };
     struct STATS
     {

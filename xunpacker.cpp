@@ -114,6 +114,8 @@ bool XUnpacker::dumpToFile(QString sFileName, XUnpacker::DUMP_OPTIONS *pDumpOpti
     XBinary::removeFile(sFileName);
 
     XPE::HEADER_OPTIONS headerOptions={};
+    headerOptions.nMachine=getCreateProcessInfo()->nMachine;
+    headerOptions.nCharacteristics=getCreateProcessInfo()->nCharacteristics;
     headerOptions.nFileAlignment=0x200;
     headerOptions.nSectionAlignment=0x1000;
 

@@ -80,6 +80,23 @@ bool XDebugger::loadFile(QString sFileName, XDebugger::OPTIONS *pOptions)
 
                         mapThreads.insert(XProcess::getThreadIDByHandle(createProcessInfo.hThread),DBGEvent.u.CreateProcessInfo.hThread);
 
+                        // Get parameters
+
+                        XProcessDevice xpd(this);
+
+                        if(xpd.openHandle(getProcessHandle(),createProcessInfo.nImageBase,createProcessInfo.nImageSize,QIODevice::ReadOnly))
+                        {
+                            XPE pe(&xpd,true,createProcessInfo.nImageBase);
+
+                            if(pe.isValid())
+                            {
+                                createProcessInfo.nMachine=pe.getFileHeader_Machine();
+                                createProcessInfo.nCharacteristics=pe.getFileHeader_Characteristics();
+                            }
+
+                            xpd.close();
+                        }
+
                         onCreateProcessDebugEvent(&createProcessInfo);
                     }
                     else if(DBGEvent.dwDebugEventCode==CREATE_THREAD_DEBUG_EVENT)
