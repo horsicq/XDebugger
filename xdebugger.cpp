@@ -51,7 +51,7 @@ bool XDebugger::loadFile(QString sFileName, XDebugger::OPTIONS *pOptions)
     {
         nProcessId=processInfo.dwProcessId;
 
-        if(ResumeThread(processInfo.hThread)!=(DWORD)-1)
+        if(ResumeThread(processInfo.hThread)!=((DWORD)-1))
         {
             BREAKPOINT bpRestore= {};
             bool bRestoreBP=false;
@@ -92,6 +92,7 @@ bool XDebugger::loadFile(QString sFileName, XDebugger::OPTIONS *pOptions)
                             {
                                 createProcessInfo.nMachine=pe.getFileHeader_Machine();
                                 createProcessInfo.nCharacteristics=pe.getFileHeader_Characteristics();
+                                createProcessInfo.nMagic=pe.getOptionalHeader_Magic();
                             }
 
                             xpd.close();
@@ -551,6 +552,12 @@ void XDebugger::stepInto(HANDLE hThread,QVariant vInfo)
     _setStep(hThread);
     stats.bStepInto=true;
     stats.vStepIntoInfo=vInfo;
+}
+
+void XDebugger::stop()
+{
+    // TODO errors
+    TerminateProcess(getProcessHandle(),0);
 }
 
 QString XDebugger::getFunctionNameByAddress(qint64 nAddress)

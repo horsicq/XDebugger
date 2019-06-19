@@ -116,6 +116,7 @@ bool XUnpacker::dumpToFile(QString sFileName, XUnpacker::DUMP_OPTIONS *pDumpOpti
     XPE::HEADER_OPTIONS headerOptions={};
     headerOptions.nMachine=getCreateProcessInfo()->nMachine;
     headerOptions.nCharacteristics=getCreateProcessInfo()->nCharacteristics;
+    headerOptions.nMagic=getCreateProcessInfo()->nMagic;
     headerOptions.nFileAlignment=0x200;
     headerOptions.nSectionAlignment=0x1000;
 
@@ -139,7 +140,7 @@ bool XUnpacker::dumpToFile(QString sFileName, XUnpacker::DUMP_OPTIONS *pDumpOpti
             pe.addSection(&ish,baSection.data(),baSection.size());
         }
 
-
+        bResult=true;
 
 
         file.close();

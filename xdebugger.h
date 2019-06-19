@@ -79,6 +79,8 @@ public:
     void skipFunction(HANDLE hThread, quint32 nNumberOfParameters,quint64 nResult);
     void stepInto(HANDLE hThread,QVariant vInfo=QVariant());
 
+    void stop();
+
 private:
     bool _setIP(HANDLE hThread,qint64 nAddress);
     bool _setStep(HANDLE hThread);
@@ -98,6 +100,7 @@ protected:
         // From Header
         quint16 nMachine;
         quint16 nCharacteristics;
+        quint16 nMagic;
     };
     struct STATS
     {
