@@ -87,6 +87,14 @@ private:
     qint64 _getRetAddress(HANDLE hThread);
 
 protected:
+    struct HEADER_INFO
+    {
+        quint16 nMachine;
+        quint16 nCharacteristics;
+        quint16 nMagic;
+        quint64 nImageBase;
+    };
+
     struct CREATEPROCESS_INFO
     {
         HANDLE hProcess;
@@ -97,10 +105,7 @@ protected:
         qint64 nStartAddress;
         qint64 nThreadLocalBase;
 
-        // From Header
-        quint16 nMachine;
-        quint16 nCharacteristics;
-        quint16 nMagic;
+        HEADER_INFO headerInfo;
     };
     struct STATS
     {

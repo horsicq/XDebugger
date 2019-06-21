@@ -90,9 +90,10 @@ bool XDebugger::loadFile(QString sFileName, XDebugger::OPTIONS *pOptions)
 
                             if(pe.isValid())
                             {
-                                createProcessInfo.nMachine=pe.getFileHeader_Machine();
-                                createProcessInfo.nCharacteristics=pe.getFileHeader_Characteristics();
-                                createProcessInfo.nMagic=pe.getOptionalHeader_Magic();
+                                createProcessInfo.headerInfo.nMachine=pe.getFileHeader_Machine();
+                                createProcessInfo.headerInfo.nCharacteristics=pe.getFileHeader_Characteristics();
+                                createProcessInfo.headerInfo.nMagic=pe.getOptionalHeader_Magic();
+                                createProcessInfo.headerInfo.nImageBase=pe.getOptionalHeader_ImageBase();
                             }
 
                             xpd.close();
