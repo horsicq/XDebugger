@@ -106,7 +106,13 @@ bool XUnpacker::dumpToFile(QString sFileName, XUnpacker::DUMP_OPTIONS *pDumpOpti
 
         record.PointerToRawData=0; // Auto
         record.SizeOfRawData=listMR.at(i).nSize;
-//        record.Characteristics= TODO
+
+        record.Characteristics=0x20000000|0x40000000|0x00000020|0x00000040;
+
+        if(listMR.at(i).mf.bWrite)
+        {
+            record.Characteristics|=0x80000000;
+        }
 
         listSH.append(record);
     }
@@ -142,7 +148,6 @@ bool XUnpacker::dumpToFile(QString sFileName, XUnpacker::DUMP_OPTIONS *pDumpOpti
         }
 
         bResult=true;
-
 
         file.close();
     }
