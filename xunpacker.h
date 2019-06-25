@@ -21,7 +21,7 @@ public:
 
     struct DUMP_OPTIONS
     {
-        qint64 nEntryPointAddress;
+        qint64 nAddressOfEntryPoint;
     };
 
     explicit XUnpacker(QObject *parent=nullptr);

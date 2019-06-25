@@ -126,6 +126,7 @@ bool XUnpacker::dumpToFile(QString sFileName, XUnpacker::DUMP_OPTIONS *pDumpOpti
     headerOptions.nImagebase=getCreateProcessInfo()->headerInfo.nImageBase;
     headerOptions.nFileAlignment=0x200;
     headerOptions.nSectionAlignment=0x1000;
+    headerOptions.nAddressOfEntryPoint=pDumpOptions->nAddressOfEntryPoint;
 
     QByteArray baHeader=XPE::createHeaderStub(&headerOptions);
 
