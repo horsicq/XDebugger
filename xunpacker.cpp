@@ -148,12 +148,27 @@ bool XUnpacker::dumpToFile(QString sFileName, XUnpacker::DUMP_OPTIONS *pDumpOpti
             pe.addSection(&ish,baSection.data(),baSection.size());
         }
 
+        QMap<qint64, QString> mapImport=getImportMap();
+
+        pe.addImportSection(&mapImport);
+
         bResult=true;
 
         file.close();
     }
 
     return bResult;
+}
+
+QMap<qint64, QString> XUnpacker::getImportMap()
+{
+    QMap<qint64, QString> mapResult;
+
+    // TODO
+
+    mapResult.insert(0x10,"kernel32.dll#ExitProcess");
+
+    return mapResult;
 }
 
 void XUnpacker::_clear()

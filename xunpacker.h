@@ -27,6 +27,7 @@ public:
     explicit XUnpacker(QObject *parent=nullptr);
 
     bool dumpToFile(QString sFileName,DUMP_OPTIONS *pDumpOptions);
+    QMap<qint64,QString> getImportMap();
 
 protected:
     virtual void _clear();
