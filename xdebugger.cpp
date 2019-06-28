@@ -94,6 +94,8 @@ bool XDebugger::loadFile(QString sFileName, XDebugger::OPTIONS *pOptions)
                                 createProcessInfo.headerInfo.nCharacteristics=pe.getFileHeader_Characteristics();
                                 createProcessInfo.headerInfo.nMagic=pe.getOptionalHeader_Magic();
                                 createProcessInfo.headerInfo.nImageBase=pe.getOptionalHeader_ImageBase();
+                                createProcessInfo.headerInfo.nResourceRVA=pe.getOptionalHeader_DataDirectory(XPE_DEF::S_IMAGE_DIRECTORY_ENTRY_RESOURCE).VirtualAddress;
+                                createProcessInfo.headerInfo.nResourceSize=pe.getOptionalHeader_DataDirectory(XPE_DEF::S_IMAGE_DIRECTORY_ENTRY_RESOURCE).Size;
                             }
 
                             xpd.close();

@@ -93,6 +93,8 @@ protected:
         quint16 nCharacteristics;
         quint16 nMagic;
         quint64 nImageBase;
+        quint32 nResourceRVA;
+        quint32 nResourceSize;
     };
 
     struct CREATEPROCESS_INFO

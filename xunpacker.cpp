@@ -124,6 +124,8 @@ bool XUnpacker::dumpToFile(QString sFileName, XUnpacker::DUMP_OPTIONS *pDumpOpti
     headerOptions.nCharacteristics=getCreateProcessInfo()->headerInfo.nCharacteristics;
     headerOptions.nMagic=getCreateProcessInfo()->headerInfo.nMagic;
     headerOptions.nImagebase=getCreateProcessInfo()->headerInfo.nImageBase;
+    headerOptions.nResourceRVA=getCreateProcessInfo()->headerInfo.nResourceRVA;
+    headerOptions.nResourceSize=getCreateProcessInfo()->headerInfo.nResourceSize;
     headerOptions.nFileAlignment=0x200;
     headerOptions.nSectionAlignment=0x1000;
     headerOptions.nAddressOfEntryPoint=pDumpOptions->nAddressOfEntryPoint;
@@ -152,6 +154,12 @@ bool XUnpacker::dumpToFile(QString sFileName, XUnpacker::DUMP_OPTIONS *pDumpOpti
 
         pe.addImportSection(&mapImport);
 
+        if(getCreateProcessInfo()->nImageBase!=getCreateProcessInfo()->headerInfo.nImageBase)
+        {
+            // TODO
+            qDebug("Relocs Present");
+        }
+
         bResult=true;
 
         file.close();
@@ -164,9 +172,26 @@ QMap<qint64, QString> XUnpacker::getImportMap()
 {
     QMap<qint64, QString> mapResult;
 
-    // TODO
+    QMapIterator<qint64, IMPORT_BUILD_RECORD> i(mapImportBuildRecords);
+    while(i.hasNext())
+    {
+        i.next();
 
-    mapResult.insert(0x10,"kernel32.dll#ExitProcess");
+        IMPORT_BUILD_RECORD record=i.value();
+
+        QString sFunction;
+
+        if(record.bIsOrdinal)
+        {
+            sFunction=QString::number(record.nOrdinal);
+        }
+        else
+        {
+            sFunction=record.sFunction;
+        }
+
+        mapResult.insert(record.nPatchAddress,record.sLibrary+"#"+sFunction);
+    }
 
     return mapResult;
 }
