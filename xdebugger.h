@@ -81,17 +81,23 @@ public:
 
     void stop();
 
+    bool dumpMemoryRegionToFile(QString sFilename,qint64 nAddress,qint64 nSize);
+
 private:
     bool _setIP(HANDLE hThread,qint64 nAddress);
     bool _setStep(HANDLE hThread);
     qint64 _getRetAddress(HANDLE hThread);
 
 protected:
-    struct HEADER_INFO
+    struct RAW_HEADER_INFO
     {
         quint16 nMachine;
         quint16 nCharacteristics;
         quint16 nMagic;
+        quint16 nSubsystem;
+        quint16 nDllcharacteristics;
+        quint8 nMajorOperationSystemVersion;
+        quint8 nMinorOperationSystemVersion;
         quint64 nImageBase;
         quint32 nResourceRVA;
         quint32 nResourceSize;
@@ -107,7 +113,7 @@ protected:
         qint64 nStartAddress;
         qint64 nThreadLocalBase;
 
-        HEADER_INFO headerInfo;
+        RAW_HEADER_INFO headerInfo;
     };
     struct STATS
     {

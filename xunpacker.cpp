@@ -28,6 +28,8 @@ bool XUnpacker::dumpToFile(QString sFileName, XUnpacker::DUMP_OPTIONS *pDumpOpti
         XProcess::MEMORY_FLAGS mf=XProcess::getMemoryFlags(getProcessHandle(),nCurrentAddress);
 
         bool bCreateNewSection=false;
+        bool bLastSection=false;
+
         if(     (mf.bExecute!=mr.mf.bExecute)||
                 (mf.bRead!=mr.mf.bRead)||
                 (mf.bWrite!=mr.mf.bWrite))
@@ -37,7 +39,7 @@ bool XUnpacker::dumpToFile(QString sFileName, XUnpacker::DUMP_OPTIONS *pDumpOpti
 
         if(nCurrentAddress+N_BUFFER_SIZE>=nImageBase+nImageSize)
         {
-            bCreateNewSection=true;
+            bLastSection=true;
         }
 
         bool bData=false;
@@ -48,12 +50,12 @@ bool XUnpacker::dumpToFile(QString sFileName, XUnpacker::DUMP_OPTIONS *pDumpOpti
             if(XBinary::isEmptyData(buffer,N_BUFFER_SIZE))
             {
                 bData=false;
-                qDebug("Empty data: %x",nCurrentAddress);
+                qDebug("Empty data: %x",nCurrentAddress-nImageBase);
             }
             else
             {
                 bData=true;
-                qDebug("Not empty data: %x",nCurrentAddress);
+                qDebug("Not empty data: %x",nCurrentAddress-nImageBase);
             }
         }
 
@@ -67,20 +69,24 @@ bool XUnpacker::dumpToFile(QString sFileName, XUnpacker::DUMP_OPTIONS *pDumpOpti
 
         _bData=bData;
 
-        if(bData)
+        if((bData)&&(!bCreateNewSection))
         {
             mr.nSize+=N_BUFFER_SIZE;
+            qDebug("Added");
         }
 
-        if(bCreateNewSection)
+        if(bCreateNewSection||bLastSection)
         {
             if(mr.nAddress)
             {
                 listMR.append(mr);
             }
-            mr.nAddress=nCurrentAddress;
-            mr.nSize=0;
-            mr.mf=mf;
+            if(bCreateNewSection)
+            {
+                mr.nAddress=nCurrentAddress;
+                mr.nSize=0x1000;
+                mr.mf=mf;
+            }
         }
     }
 
@@ -120,17 +126,50 @@ bool XUnpacker::dumpToFile(QString sFileName, XUnpacker::DUMP_OPTIONS *pDumpOpti
     XBinary::removeFile(sFileName);
 
     XPE::HEADER_OPTIONS headerOptions={};
+
+//    XProcessDevice xpd(this);
+
+//    if(xpd.openHandle(getProcessHandle(),getCreateProcessInfo()->nImageBase,getCreateProcessInfo()->nImageSize,QIODevice::ReadOnly))
+//    {
+//        XPE pe(&xpd,true,getCreateProcessInfo()->nImageBase);
+
+//        if(pe.isValid())
+//        {
+//            headerOptions.nMachine=pe.getFileHeader_Machine();
+//            headerOptions.nCharacteristics=pe.getFileHeader_Characteristics();
+//            headerOptions.nMagic=pe.getOptionalHeader_Magic();
+//            headerOptions.nImagebase=pe.getOptionalHeader_ImageBase();
+//            headerOptions.nDllcharacteristics=pe.getOptionalHeader_DllCharacteristics();
+//            headerOptions.nMajorOperationSystemVersion=pe.getOptionalHeader_MajorOperatingSystemVersion();
+//            headerOptions.nMinorOperationSystemVersion=pe.getOptionalHeader_MinorOperatingSystemVersion();
+//            headerOptions.nSubsystem=pe.getOptionalHeader_Subsystem();
+//            headerOptions.nResourceRVA=pe.getOptionalHeader_DataDirectory(XPE_DEF::S_IMAGE_DIRECTORY_ENTRY_RESOURCE).VirtualAddress;
+//            headerOptions.nResourceSize=pe.getOptionalHeader_DataDirectory(XPE_DEF::S_IMAGE_DIRECTORY_ENTRY_RESOURCE).Size;
+//        }
+
+//        xpd.close();
+//    }
+
     headerOptions.nMachine=getCreateProcessInfo()->headerInfo.nMachine;
     headerOptions.nCharacteristics=getCreateProcessInfo()->headerInfo.nCharacteristics;
     headerOptions.nMagic=getCreateProcessInfo()->headerInfo.nMagic;
     headerOptions.nImagebase=getCreateProcessInfo()->headerInfo.nImageBase;
+    headerOptions.nDllcharacteristics=getCreateProcessInfo()->headerInfo.nDllcharacteristics;
+    headerOptions.nMajorOperationSystemVersion=getCreateProcessInfo()->headerInfo.nMajorOperationSystemVersion;
+    headerOptions.nMinorOperationSystemVersion=getCreateProcessInfo()->headerInfo.nMinorOperationSystemVersion;
+    headerOptions.nSubsystem=getCreateProcessInfo()->headerInfo.nSubsystem;
     headerOptions.nResourceRVA=getCreateProcessInfo()->headerInfo.nResourceRVA;
     headerOptions.nResourceSize=getCreateProcessInfo()->headerInfo.nResourceSize;
+
+//    dumpMemoryRegionToFile("C:\\tmp_build\\header.dmp",getCreateProcessInfo()->nImageBase,0x1000);
+
     headerOptions.nFileAlignment=0x200;
     headerOptions.nSectionAlignment=0x1000;
     headerOptions.nAddressOfEntryPoint=pDumpOptions->nAddressOfEntryPoint;
 
-    QByteArray baHeader=XPE::createHeaderStub(&headerOptions);
+//    QByteArray baHeader=XPE::createHeaderStub(&headerOptions);
+
+    QByteArray baHeader=read_array(getCreateProcessInfo()->nImageBase,0x400);
 
     QFile file;
     file.setFileName(sFileName);
@@ -140,6 +179,9 @@ bool XUnpacker::dumpToFile(QString sFileName, XUnpacker::DUMP_OPTIONS *pDumpOpti
         file.write(baHeader.data(),baHeader.size());
 
         XPE pe(&file);
+
+        pe.setOptionalHeader_AddressOfEntryPoint(pDumpOptions->nAddressOfEntryPoint);
+        pe.setFileHeader_NumberOfSections(0);
 
         for(int i=0;i<nCountMR;i++)
         {

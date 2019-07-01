@@ -49,6 +49,28 @@ bool XDebugger::loadFile(QString sFileName, XDebugger::OPTIONS *pOptions)
 
     if(CreateProcessW((const wchar_t*)sFileName.utf16(),nullptr,nullptr,nullptr,0,nFlags,nullptr,nullptr,&sturtupInfo,&processInfo))
     {
+        QFile file;
+
+        file.setFileName(sFileName);
+
+        if(file.open(QIODevice::ReadOnly))
+        {
+            XPE pe(&file);
+
+            createProcessInfo.headerInfo.nMachine=pe.getFileHeader_Machine();
+            createProcessInfo.headerInfo.nCharacteristics=pe.getFileHeader_Characteristics();
+            createProcessInfo.headerInfo.nMagic=pe.getOptionalHeader_Magic();
+            createProcessInfo.headerInfo.nSubsystem=pe.getOptionalHeader_Subsystem();
+            createProcessInfo.headerInfo.nDllcharacteristics=pe.getOptionalHeader_DllCharacteristics();
+            createProcessInfo.headerInfo.nMajorOperationSystemVersion=pe.getOptionalHeader_MajorOperatingSystemVersion();
+            createProcessInfo.headerInfo.nMinorOperationSystemVersion=pe.getOptionalHeader_MinorOperatingSystemVersion();
+            createProcessInfo.headerInfo.nImageBase=pe.getOptionalHeader_ImageBase();
+            createProcessInfo.headerInfo.nResourceRVA=pe.getOptionalHeader_DataDirectory(XPE_DEF::S_IMAGE_DIRECTORY_ENTRY_RESOURCE).VirtualAddress;
+            createProcessInfo.headerInfo.nResourceSize=pe.getOptionalHeader_DataDirectory(XPE_DEF::S_IMAGE_DIRECTORY_ENTRY_RESOURCE).Size;
+
+            file.close();
+        }
+
         nProcessId=processInfo.dwProcessId;
 
         if(ResumeThread(processInfo.hThread)!=((DWORD)-1))
@@ -82,24 +104,24 @@ bool XDebugger::loadFile(QString sFileName, XDebugger::OPTIONS *pOptions)
 
                         // Get parameters
 
-                        XProcessDevice xpd(this);
+//                        XProcessDevice xpd(this);
 
-                        if(xpd.openHandle(getProcessHandle(),createProcessInfo.nImageBase,createProcessInfo.nImageSize,QIODevice::ReadOnly))
-                        {
-                            XPE pe(&xpd,true,createProcessInfo.nImageBase);
+//                        if(xpd.openHandle(getProcessHandle(),createProcessInfo.nImageBase,createProcessInfo.nImageSize,QIODevice::ReadOnly))
+//                        {
+//                            XPE pe(&xpd,true,createProcessInfo.nImageBase);
 
-                            if(pe.isValid())
-                            {
-                                createProcessInfo.headerInfo.nMachine=pe.getFileHeader_Machine();
-                                createProcessInfo.headerInfo.nCharacteristics=pe.getFileHeader_Characteristics();
-                                createProcessInfo.headerInfo.nMagic=pe.getOptionalHeader_Magic();
-                                createProcessInfo.headerInfo.nImageBase=pe.getOptionalHeader_ImageBase();
-                                createProcessInfo.headerInfo.nResourceRVA=pe.getOptionalHeader_DataDirectory(XPE_DEF::S_IMAGE_DIRECTORY_ENTRY_RESOURCE).VirtualAddress;
-                                createProcessInfo.headerInfo.nResourceSize=pe.getOptionalHeader_DataDirectory(XPE_DEF::S_IMAGE_DIRECTORY_ENTRY_RESOURCE).Size;
-                            }
+//                            if(pe.isValid())
+//                            {
+//                                createProcessInfo.headerInfo.nMachine=pe.getFileHeader_Machine();
+//                                createProcessInfo.headerInfo.nCharacteristics=pe.getFileHeader_Characteristics();
+//                                createProcessInfo.headerInfo.nMagic=pe.getOptionalHeader_Magic();
+//                                createProcessInfo.headerInfo.nImageBase=pe.getOptionalHeader_ImageBase();
+//                                createProcessInfo.headerInfo.nResourceRVA=pe.getOptionalHeader_DataDirectory(XPE_DEF::S_IMAGE_DIRECTORY_ENTRY_RESOURCE).VirtualAddress;
+//                                createProcessInfo.headerInfo.nResourceSize=pe.getOptionalHeader_DataDirectory(XPE_DEF::S_IMAGE_DIRECTORY_ENTRY_RESOURCE).Size;
+//                            }
 
-                            xpd.close();
-                        }
+//                            xpd.close();
+//                        }
 
                         onCreateProcessDebugEvent(&createProcessInfo);
                     }
@@ -561,6 +583,24 @@ void XDebugger::stop()
 {
     // TODO errors
     TerminateProcess(getProcessHandle(),0);
+}
+
+bool XDebugger::dumpMemoryRegionToFile(QString sFilename, qint64 nAddress, qint64 nSize)
+{
+    bool bResult=false;
+
+    XProcessDevice xpd(this);
+
+    if(xpd.openHandle(getProcessHandle(),nAddress,nSize,QIODevice::ReadOnly))
+    {
+        XBinary binary(&xpd);
+
+        bResult=binary.dumpToFile(sFilename,(qint64)0,nSize);
+
+        xpd.close();
+    }
+
+    return bResult;
 }
 
 QString XDebugger::getFunctionNameByAddress(qint64 nAddress)
