@@ -171,14 +171,13 @@ bool XUnpacker::dumpToFile(QString sFileName, XUnpacker::DUMP_OPTIONS *pDumpOpti
 
     QByteArray baHeader=read_array(getCreateProcessInfo()->nImageBase,0x400);
 
-    QFile file;
-    file.setFileName(sFileName);
 
-    if(file.open(QIODevice::ReadWrite))
+    QBuffer buBuffer;
+    buBuffer.setBuffer(&baHeader);
+
+    if(buBuffer.open(QIODevice::ReadWrite))
     {
-        file.write(baHeader.data(),baHeader.size());
-
-        XPE pe(&file);
+        XPE pe(&buBuffer);
 
         pe.setOptionalHeader_AddressOfEntryPoint(pDumpOptions->nAddressOfEntryPoint);
         pe.setFileHeader_NumberOfSections(0);
@@ -204,8 +203,61 @@ bool XUnpacker::dumpToFile(QString sFileName, XUnpacker::DUMP_OPTIONS *pDumpOpti
 
         bResult=true;
 
-        file.close();
+        buBuffer.close();
     }
+
+    if(bResult)
+    {
+        QFile file;
+        file.setFileName(sFileName);
+
+        if(file.open(QIODevice::ReadWrite))
+        {
+            file.write(baHeader.data(),baHeader.size());
+
+            file.close();
+        }
+        else
+        {
+            bResult=false;
+        }
+    }
+
+//    QFile file;
+//    file.setFileName(sFileName);
+
+//    if(file.open(QIODevice::ReadWrite))
+//    {
+//        file.write(baHeader.data(),baHeader.size());
+
+//        XPE pe(&file);
+
+//        pe.setOptionalHeader_AddressOfEntryPoint(pDumpOptions->nAddressOfEntryPoint);
+//        pe.setFileHeader_NumberOfSections(0);
+
+//        for(int i=0;i<nCountMR;i++)
+//        {
+//            QByteArray baSection=read_array(listMR.at(i).nAddress,listMR.at(i).nSize);
+
+//            XPE_DEF::IMAGE_SECTION_HEADER ish=listSH.at(i);
+
+//            pe.addSection(&ish,baSection.data(),baSection.size());
+//        }
+
+//        QMap<qint64, QString> mapImport=getImportMap();
+
+//        pe.addImportSection(&mapImport);
+
+//        if(getCreateProcessInfo()->nImageBase!=getCreateProcessInfo()->headerInfo.nImageBase)
+//        {
+//            // TODO
+//            qDebug("Relocs Present");
+//        }
+
+//        bResult=true;
+
+//        file.close();
+//    }
 
     return bResult;
 }
