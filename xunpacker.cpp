@@ -171,7 +171,6 @@ bool XUnpacker::dumpToFile(QString sFileName, XUnpacker::DUMP_OPTIONS *pDumpOpti
 
     QByteArray baHeader=read_array(getCreateProcessInfo()->nImageBase,0x400);
 
-
     QBuffer buBuffer;
     buBuffer.setBuffer(&baHeader);
 
@@ -288,6 +287,16 @@ QMap<qint64, QString> XUnpacker::getImportMap()
     }
 
     return mapResult;
+}
+
+void XUnpacker::setResultFileName(QString sResultFileName)
+{
+    this->sResultFileName=sResultFileName;
+}
+
+QString XUnpacker::getResultFileName()
+{
+    return sResultFileName;
 }
 
 void XUnpacker::_clear()

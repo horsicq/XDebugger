@@ -29,12 +29,17 @@ public:
     bool dumpToFile(QString sFileName,DUMP_OPTIONS *pDumpOptions);
     QMap<qint64,QString> getImportMap();
 
+    void setResultFileName(QString sResultFileName);
+    QString getResultFileName();
+
 protected:
     virtual void _clear();
     void addImportBuildRecord(IMPORT_BUILD_RECORD record);
 
 private:
     QMap<qint64,IMPORT_BUILD_RECORD> mapImportBuildRecords;
+
+    QString sResultFileName;
 };
 
 #endif // XUNPACKER_H
