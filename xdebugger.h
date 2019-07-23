@@ -46,7 +46,7 @@ public:
     };
 
     explicit XDebugger(QObject *parent=nullptr);
-    bool loadFile(QString sFileName,OPTIONS *pOptions);
+    bool loadFile(QString sFileName,OPTIONS *pOptions=nullptr);
 
     struct DLL_INFO
     {
