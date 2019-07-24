@@ -603,6 +603,18 @@ bool XDebugger::dumpMemoryRegionToFile(QString sFilename, qint64 nAddress, qint6
     return bResult;
 }
 
+bool XDebugger::isAddressInImage(qint64 nAddress)
+{
+    bool bResult=false;
+
+    if((createProcessInfo.nImageBase<=nAddress)&&(nAddress<createProcessInfo.nImageBase+createProcessInfo.nImageSize))
+    {
+        bResult=true;
+    }
+
+    return bResult;
+}
+
 QString XDebugger::getFunctionNameByAddress(qint64 nAddress)
 {
     QString sResult;

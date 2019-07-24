@@ -82,6 +82,7 @@ public:
     void stop();
 
     bool dumpMemoryRegionToFile(QString sFilename,qint64 nAddress,qint64 nSize);
+    bool isAddressInImage(qint64 nAddress);
 
 private:
     bool _setIP(HANDLE hThread,qint64 nAddress);
