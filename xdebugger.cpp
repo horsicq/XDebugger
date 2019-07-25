@@ -98,7 +98,7 @@ bool XDebugger::loadFile(QString sFileName, XDebugger::OPTIONS *pOptions)
                         createProcessInfo.sFileName=XProcess::getFileNameByHandle(DBGEvent.u.CreateProcessInfo.hFile);
                         createProcessInfo.nThreadLocalBase=(qint64)DBGEvent.u.CreateProcessInfo.lpThreadLocalBase;
 
-                        addBP(createProcessInfo.nStartAddress,BP_TYPE_CC,BP_INFO_ENTRYPOINT,1);
+                        setBP(createProcessInfo.nStartAddress,BP_TYPE_CC,BP_INFO_ENTRYPOINT,1);
 
                         mapThreads.insert(XProcess::getThreadIDByHandle(createProcessInfo.hThread),DBGEvent.u.CreateProcessInfo.hThread);
 
@@ -253,7 +253,7 @@ bool XDebugger::loadFile(QString sFileName, XDebugger::OPTIONS *pOptions)
                                     quint64 nID=XBinary::random64();
                                     mapAPI.insert(nID,functionInfo);
 
-                                    addBP(functionInfo.nRetAddress,BP_TYPE_CC,BP_INFO_API_LEAVE,1,nID);
+                                    setBP(functionInfo.nRetAddress,BP_TYPE_CC,BP_INFO_API_LEAVE,1,nID);
                                 }
                                 else if(bp.bpInfo==BP_INFO_API_LEAVE)
                                 {
@@ -280,7 +280,7 @@ bool XDebugger::loadFile(QString sFileName, XDebugger::OPTIONS *pOptions)
                         {
                             if(bRestoreBP)
                             {
-                                addBP(bpRestore.nAddress,bpRestore.bpType,bpRestore.bpInfo,bpRestore.nCount,bpRestore.vInfo);
+                                setBP(bpRestore.nAddress,bpRestore.bpType,bpRestore.bpInfo,bpRestore.nCount,bpRestore.vInfo);
                                 bRestoreBP=false;
                                 nStatus=DBG_CONTINUE;
                             }
@@ -340,7 +340,7 @@ QMap<qint64, XDebugger::DLL_INFO> *XDebugger::getMapDLL()
     return &mapDLL;
 }
 
-bool XDebugger::addBP(qint64 nAddress, XDebugger::BP_TYPE bpType, XDebugger::BP_INFO bpInfo, qint32 nCount, QVariant vInfo)
+bool XDebugger::setBP(qint64 nAddress, XDebugger::BP_TYPE bpType, XDebugger::BP_INFO bpInfo, qint32 nCount, QVariant vInfo)
 {
     bool bResult=false;
 
@@ -468,7 +468,9 @@ bool XDebugger::_addAPIHook(XDebugger::DLL_INFO dllInfo, QString sFunctionName)
                 {
                     if(exportHeader.listPositions.at(i).sFunctionName==sFunction)
                     {
-                        addBP(exportHeader.listPositions.at(i).nAddress,BP_TYPE_CC,BP_INFO_API_ENTER,-1,sFunctionName);
+                        setBP(exportHeader.listPositions.at(i).nAddress,BP_TYPE_CC,BP_INFO_API_ENTER,-1,sFunctionName);
+
+                        break;
                     }
                 }
             }

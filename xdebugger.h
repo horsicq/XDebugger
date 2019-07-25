@@ -87,7 +87,6 @@ public:
 private:
     bool _setIP(HANDLE hThread,qint64 nAddress);
     bool _setStep(HANDLE hThread);
-    qint64 _getRetAddress(HANDLE hThread);
 
 protected:
     struct RAW_HEADER_INFO
@@ -189,7 +188,7 @@ protected:
     virtual void onStep(STEP *pStep) {}
     // TODO onException
 
-    bool addBP(qint64 nAddress,BP_TYPE bpType=BP_TYPE_CC,BP_INFO bpInfo=BP_INFO_UNKNOWN,qint32 nCount=-1,QVariant vInfo=QVariant());
+    bool setBP(qint64 nAddress,BP_TYPE bpType=BP_TYPE_CC,BP_INFO bpInfo=BP_INFO_UNKNOWN,qint32 nCount=-1,QVariant vInfo=QVariant());
     bool removeBP(qint64 nAddress);
     bool addAPIHook(QString sFunctionName);
     bool removeAPIHook(QString sFunctionName);
@@ -213,6 +212,8 @@ protected:
     quint64 getRegister(HANDLE hThread,REG_NAME regName);
     bool setRegister(HANDLE hThread,REG_NAME regName,quint64 nValue);
     CREATEPROCESS_INFO *getCreateProcessInfo();
+
+    qint64 _getRetAddress(HANDLE hThread);
 
 signals:
     void messageString(MESSAGE_TYPE type,QString sText);
