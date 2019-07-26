@@ -421,6 +421,8 @@ bool XDebugger::removeAPIHook(QString sFunctionName)
     {
         QMutableMapIterator<qint64,BREAKPOINT> i(mapBP);
 
+        QList<qint64> listBP;
+
         while(i.hasNext())
         {
             i.next();
@@ -430,10 +432,13 @@ bool XDebugger::removeAPIHook(QString sFunctionName)
 
             if(bp.vInfo.toString()==sFunctionName)
             {
-                removeBP(nAddress);
-
-                i.remove();
+                listBP.append(nAddress);
             }
+        }
+
+        for(int i=0;i<listBP.count();i++)
+        {
+            removeBP(listBP.at(i));
         }
 
         if(stAPIHooks.contains(sFunctionName))
