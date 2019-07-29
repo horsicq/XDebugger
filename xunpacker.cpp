@@ -192,12 +192,23 @@ bool XUnpacker::dumpToFile(QString sFileName, XUnpacker::DUMP_OPTIONS *pDumpOpti
 
         QMap<qint64, QString> mapImport=getImportMap();
 
-        pe.addImportSection(&mapImport);
+        if(mapImport.size())
+        {
+            pe.addImportSection(&mapImport);
+        }
+
 
         if(getCreateProcessInfo()->nImageBase!=getCreateProcessInfo()->headerInfo.nImageBase)
         {
             // TODO
             qDebug("Relocs Present");
+        }
+
+        QList<qint64> listRelocs=getRelocsList();
+
+        if(listRelocs.size())
+        {
+            pe.addRelocsSection(&listRelocs);
         }
 
         bResult=true;
@@ -289,6 +300,25 @@ QMap<qint64, QString> XUnpacker::getImportMap()
     return mapResult;
 }
 
+QList<qint64> XUnpacker::getRelocsList()
+{
+    QList<qint64> listResult;
+
+    QMapIterator<qint64, RELOC_BUILD_RECORD> i(mapRelocBuildRecords);
+    while(i.hasNext())
+    {
+        i.next();
+
+        RELOC_BUILD_RECORD record=i.value();
+
+        record.nPatchAddress-=getCreateProcessInfo()->nImageBase;
+
+        listResult.append(record.nPatchAddress);
+    }
+
+    return listResult;
+}
+
 void XUnpacker::setResultFileName(QString sResultFileName)
 {
     this->sResultFileName=sResultFileName;
@@ -304,9 +334,15 @@ void XUnpacker::_clear()
     XDebugger::_clear();
 
     mapImportBuildRecords.clear();
+    mapRelocBuildRecords.clear();
 }
 
 void XUnpacker::addImportBuildRecord(XUnpacker::IMPORT_BUILD_RECORD record)
 {
     mapImportBuildRecords.insert(record.nPatchAddress,record);
+}
+
+void XUnpacker::addRelocBuildRecord(XUnpacker::RELOC_BUILD_RECORD record)
+{
+    mapRelocBuildRecords.insert(record.nPatchAddress,record);
 }

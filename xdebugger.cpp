@@ -357,7 +357,7 @@ bool XDebugger::setBP(qint64 nAddress, XDebugger::BP_TYPE bpType, XDebugger::BP_
 
         if(readData(nAddress,bp.origData,bp.nOrigDataSize))
         {
-            if(writeData(nAddress,"\xCC",bp.nOrigDataSize))
+            if(writeData(nAddress,(char *)"\xCC",bp.nOrigDataSize)) // TODO Check
             {
                 mapBP.insert(nAddress,bp);
 
