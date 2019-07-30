@@ -45,6 +45,7 @@ bool XDebugger::loadFile(QString sFileName, XDebugger::OPTIONS *pOptions)
     PROCESS_INFORMATION processInfo= {};
     STARTUPINFOW sturtupInfo= {};
 
+    // TODO 32/64
     sturtupInfo.cb=sizeof(sturtupInfo);
 
     if(CreateProcessW((const wchar_t*)sFileName.utf16(),nullptr,nullptr,nullptr,0,nFlags,nullptr,nullptr,&sturtupInfo,&processInfo))
