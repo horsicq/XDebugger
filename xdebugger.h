@@ -40,6 +40,7 @@ public:
 
     enum MESSAGE_TYPE
     {
+        MESSAGE_TYPE_UNKNOWN=0,
         MESSAGE_TYPE_INFO,
         MESSAGE_TYPE_WARNING,
         MESSAGE_TYPE_ERROR
@@ -87,6 +88,7 @@ public:
 private:
     bool _setIP(HANDLE hThread,qint64 nAddress);
     bool _setStep(HANDLE hThread);
+    void _messageString(MESSAGE_TYPE type,QString sText);
 
 protected:
     struct RAW_HEADER_INFO
@@ -216,7 +218,7 @@ protected:
     qint64 _getRetAddress(HANDLE hThread);
 
 signals:
-    void messageString(MESSAGE_TYPE type,QString sText);
+    void messageString(quint32 nType,QString sText);
 
 private:
     XDebugger::OPTIONS options;

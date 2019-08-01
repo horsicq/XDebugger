@@ -327,6 +327,10 @@ bool XDebugger::loadFile(QString sFileName, XDebugger::OPTIONS *pOptions)
             bSuccess=true;
         }
     }
+    else
+    {
+        _messageString(MESSAGE_TYPE_ERROR,QString("%1: %2").arg(tr("Cannot load file")).arg(sFileName));
+    }
 
     return bSuccess;
 }
@@ -791,6 +795,11 @@ bool XDebugger::_setStep(HANDLE hThread)
     }
 
     return bResult;
+}
+
+void XDebugger::_messageString(XDebugger::MESSAGE_TYPE type, QString sText)
+{
+    emit messageString(type,sText);
 }
 
 qint64 XDebugger::_getRetAddress(HANDLE hThread)
