@@ -50,12 +50,14 @@ bool XUnpacker::dumpToFile(QString sFileName, XUnpacker::DUMP_OPTIONS *pDumpOpti
             if(XBinary::isEmptyData(buffer,N_BUFFER_SIZE))
             {
                 bData=false;
-                qDebug("Empty data: %x",nCurrentAddress-nImageBase);
+                QString sDebugString=QString("%1: %2").arg(tr("Empty data")).arg(nCurrentAddress-nImageBase,0,16);
+                _messageString(MESSAGE_TYPE_INFO,sDebugString);
             }
             else
             {
                 bData=true;
-                qDebug("Not empty data: %x",nCurrentAddress-nImageBase);
+                QString sDebugString=QString("%1: %2").arg(tr("Not empty data")).arg(nCurrentAddress-nImageBase,0,16);
+                _messageString(MESSAGE_TYPE_INFO,sDebugString);
             }
         }
 
@@ -169,7 +171,7 @@ bool XUnpacker::dumpToFile(QString sFileName, XUnpacker::DUMP_OPTIONS *pDumpOpti
 
 //    QByteArray baHeader=XPE::createHeaderStub(&headerOptions);
 
-    QByteArray baHeader=read_array(getCreateProcessInfo()->nImageBase,0x400);
+    QByteArray baHeader=read_array(getCreateProcessInfo()->nImageBase,0x200);
 
     QBuffer buBuffer;
     buBuffer.setBuffer(&baHeader);
@@ -179,6 +181,7 @@ bool XUnpacker::dumpToFile(QString sFileName, XUnpacker::DUMP_OPTIONS *pDumpOpti
         XPE pe(&buBuffer);
 
         pe.setOptionalHeader_AddressOfEntryPoint(pDumpOptions->nAddressOfEntryPoint);
+        pe.setOptionalHeader_ImageBase(getCreateProcessInfo()->headerInfo.nImageBase);
         pe.setFileHeader_NumberOfSections(0);
 
         for(int i=0;i<nCountMR;i++)
@@ -196,7 +199,6 @@ bool XUnpacker::dumpToFile(QString sFileName, XUnpacker::DUMP_OPTIONS *pDumpOpti
         {
             pe.addImportSection(&mapImport);
         }
-
 
         if(getCreateProcessInfo()->nImageBase!=getCreateProcessInfo()->headerInfo.nImageBase)
         {

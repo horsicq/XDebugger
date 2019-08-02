@@ -88,7 +88,7 @@ public:
 private:
     bool _setIP(HANDLE hThread,qint64 nAddress);
     bool _setStep(HANDLE hThread);
-    void _messageString(MESSAGE_TYPE type,QString sText);
+
 
 protected:
     struct RAW_HEADER_INFO
@@ -216,6 +216,8 @@ protected:
     CREATEPROCESS_INFO *getCreateProcessInfo();
 
     qint64 _getRetAddress(HANDLE hThread);
+
+    void _messageString(MESSAGE_TYPE type,QString sText);
 
 signals:
     void messageString(quint32 nType,QString sText);
