@@ -58,16 +58,17 @@ bool XDebugger::loadFile(QString sFileName, XDebugger::OPTIONS *pOptions)
         {
             XPE pe(&file);
 
-            createProcessInfo.headerInfo.nMachine=pe.getFileHeader_Machine();
-            createProcessInfo.headerInfo.nCharacteristics=pe.getFileHeader_Characteristics();
-            createProcessInfo.headerInfo.nMagic=pe.getOptionalHeader_Magic();
-            createProcessInfo.headerInfo.nSubsystem=pe.getOptionalHeader_Subsystem();
-            createProcessInfo.headerInfo.nDllcharacteristics=pe.getOptionalHeader_DllCharacteristics();
-            createProcessInfo.headerInfo.nMajorOperationSystemVersion=pe.getOptionalHeader_MajorOperatingSystemVersion();
-            createProcessInfo.headerInfo.nMinorOperationSystemVersion=pe.getOptionalHeader_MinorOperatingSystemVersion();
-            createProcessInfo.headerInfo.nImageBase=pe.getOptionalHeader_ImageBase();
-            createProcessInfo.headerInfo.nResourceRVA=pe.getOptionalHeader_DataDirectory(XPE_DEF::S_IMAGE_DIRECTORY_ENTRY_RESOURCE).VirtualAddress;
-            createProcessInfo.headerInfo.nResourceSize=pe.getOptionalHeader_DataDirectory(XPE_DEF::S_IMAGE_DIRECTORY_ENTRY_RESOURCE).Size;
+            createProcessInfo.fileInfo.nMachine=pe.getFileHeader_Machine();
+            createProcessInfo.fileInfo.nCharacteristics=pe.getFileHeader_Characteristics();
+            createProcessInfo.fileInfo.nMagic=pe.getOptionalHeader_Magic();
+            createProcessInfo.fileInfo.nSubsystem=pe.getOptionalHeader_Subsystem();
+            createProcessInfo.fileInfo.nDllcharacteristics=pe.getOptionalHeader_DllCharacteristics();
+            createProcessInfo.fileInfo.nMajorOperationSystemVersion=pe.getOptionalHeader_MajorOperatingSystemVersion();
+            createProcessInfo.fileInfo.nMinorOperationSystemVersion=pe.getOptionalHeader_MinorOperatingSystemVersion();
+            createProcessInfo.fileInfo.nImageBase=pe.getOptionalHeader_ImageBase();
+            createProcessInfo.fileInfo.nResourceRVA=pe.getOptionalHeader_DataDirectory(XPE_DEF::S_IMAGE_DIRECTORY_ENTRY_RESOURCE).VirtualAddress;
+            createProcessInfo.fileInfo.nResourceSize=pe.getOptionalHeader_DataDirectory(XPE_DEF::S_IMAGE_DIRECTORY_ENTRY_RESOURCE).Size;
+            createProcessInfo.fileInfo.bIsTLSPresent=pe.isTLSPresent();
 
             file.close();
         }
@@ -544,6 +545,11 @@ quint32 XDebugger::read_uint32(qint64 nAddress)
 quint64 XDebugger::read_uint64(qint64 nAddress)
 {
     return XProcess::read_uint64(getProcessHandle(),nAddress);
+}
+
+void XDebugger::write_uint32(qint64 nAddress, quint32 nValue)
+{
+    XProcess::write_uint32(getProcessHandle(),nAddress,nValue);
 }
 
 qint64 XDebugger::findSignature(qint64 nAddress, qint64 nSize, QString sSignature)

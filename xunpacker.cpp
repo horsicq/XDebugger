@@ -22,6 +22,7 @@ bool XUnpacker::dumpToFile(QString sFileName, XUnpacker::DUMP_OPTIONS *pDumpOpti
     int _bData=false;
 
     // The first block is a header
+    // TODO directories!!!
     for(qint64 nCurrentAddress=nImageBase+0x1000;nCurrentAddress<nImageBase+nImageSize;nCurrentAddress+=N_BUFFER_SIZE)
     {
         // TODO handle errors
@@ -74,7 +75,6 @@ bool XUnpacker::dumpToFile(QString sFileName, XUnpacker::DUMP_OPTIONS *pDumpOpti
         if((bData)&&(!bCreateNewSection))
         {
             mr.nSize+=N_BUFFER_SIZE;
-            qDebug("Added");
         }
 
         if(bCreateNewSection||bLastSection)
@@ -152,16 +152,16 @@ bool XUnpacker::dumpToFile(QString sFileName, XUnpacker::DUMP_OPTIONS *pDumpOpti
 //        xpd.close();
 //    }
 
-    headerOptions.nMachine=getCreateProcessInfo()->headerInfo.nMachine;
-    headerOptions.nCharacteristics=getCreateProcessInfo()->headerInfo.nCharacteristics;
-    headerOptions.nMagic=getCreateProcessInfo()->headerInfo.nMagic;
-    headerOptions.nImagebase=getCreateProcessInfo()->headerInfo.nImageBase;
-    headerOptions.nDllcharacteristics=getCreateProcessInfo()->headerInfo.nDllcharacteristics;
-    headerOptions.nMajorOperationSystemVersion=getCreateProcessInfo()->headerInfo.nMajorOperationSystemVersion;
-    headerOptions.nMinorOperationSystemVersion=getCreateProcessInfo()->headerInfo.nMinorOperationSystemVersion;
-    headerOptions.nSubsystem=getCreateProcessInfo()->headerInfo.nSubsystem;
-    headerOptions.nResourceRVA=getCreateProcessInfo()->headerInfo.nResourceRVA;
-    headerOptions.nResourceSize=getCreateProcessInfo()->headerInfo.nResourceSize;
+    headerOptions.nMachine=getCreateProcessInfo()->fileInfo.nMachine;
+    headerOptions.nCharacteristics=getCreateProcessInfo()->fileInfo.nCharacteristics;
+    headerOptions.nMagic=getCreateProcessInfo()->fileInfo.nMagic;
+    headerOptions.nImagebase=getCreateProcessInfo()->fileInfo.nImageBase;
+    headerOptions.nDllcharacteristics=getCreateProcessInfo()->fileInfo.nDllcharacteristics;
+    headerOptions.nMajorOperationSystemVersion=getCreateProcessInfo()->fileInfo.nMajorOperationSystemVersion;
+    headerOptions.nMinorOperationSystemVersion=getCreateProcessInfo()->fileInfo.nMinorOperationSystemVersion;
+    headerOptions.nSubsystem=getCreateProcessInfo()->fileInfo.nSubsystem;
+    headerOptions.nResourceRVA=getCreateProcessInfo()->fileInfo.nResourceRVA;
+    headerOptions.nResourceSize=getCreateProcessInfo()->fileInfo.nResourceSize;
 
 //    dumpMemoryRegionToFile("C:\\tmp_build\\header.dmp",getCreateProcessInfo()->nImageBase,0x1000);
 
@@ -170,6 +170,31 @@ bool XUnpacker::dumpToFile(QString sFileName, XUnpacker::DUMP_OPTIONS *pDumpOpti
     headerOptions.nAddressOfEntryPoint=pDumpOptions->nAddressOfEntryPoint;
 
 //    QByteArray baHeader=XPE::createHeaderStub(&headerOptions);
+
+    // Patch relocs
+
+    if(getCreateProcessInfo()->fileInfo.bIsTLSPresent)
+    {
+        // TODO TLS
+//        pe.setTLS_AddressOfCallBacks(pe.getTLS_AddressOfCallBacks()-nDelta);
+//        pe.setTLS_AddressOfIndex(pe.getTLS_AddressOfIndex()-nDelta);
+//        pe.setTLS_EndAddressOfRawData(pe.getTLS_EndAddressOfRawData()-nDelta);
+//        pe.setTLS_StartAddressOfRawData(pe.getTLS_StartAddressOfRawData()-nDelta);
+    }
+
+    qint64 nDelta=getCreateProcessInfo()->nImageBase-getCreateProcessInfo()->fileInfo.nImageBase;
+
+    QMapIterator<qint64, RELOC_BUILD_RECORD> i(mapRelocBuildRecords);
+    while(i.hasNext())
+    {
+        i.next();
+
+        RELOC_BUILD_RECORD record=i.value();
+
+        quint32 nValue=read_uint32(record.nPatchAddress);
+        nValue-=nDelta;
+        write_uint32(record.nPatchAddress,nValue);
+    }
 
     QByteArray baHeader=read_array(getCreateProcessInfo()->nImageBase,0x200);
 
@@ -181,7 +206,7 @@ bool XUnpacker::dumpToFile(QString sFileName, XUnpacker::DUMP_OPTIONS *pDumpOpti
         XPE pe(&buBuffer);
 
         pe.setOptionalHeader_AddressOfEntryPoint(pDumpOptions->nAddressOfEntryPoint);
-        pe.setOptionalHeader_ImageBase(getCreateProcessInfo()->headerInfo.nImageBase);
+
         pe.setFileHeader_NumberOfSections(0);
 
         for(int i=0;i<nCountMR;i++)
@@ -193,6 +218,12 @@ bool XUnpacker::dumpToFile(QString sFileName, XUnpacker::DUMP_OPTIONS *pDumpOpti
             pe.addSection(&ish,baSection.data(),baSection.size());
         }
 
+        // Fix relocs
+        if(nDelta)
+        {
+            pe.setOptionalHeader_ImageBase(pe.getOptionalHeader_ImageBase()-nDelta);
+        }
+
         QMap<qint64, QString> mapImport=getImportMap();
 
         if(mapImport.size())
@@ -200,10 +231,9 @@ bool XUnpacker::dumpToFile(QString sFileName, XUnpacker::DUMP_OPTIONS *pDumpOpti
             pe.addImportSection(&mapImport);
         }
 
-        if(getCreateProcessInfo()->nImageBase!=getCreateProcessInfo()->headerInfo.nImageBase)
+        if(getCreateProcessInfo()->nImageBase!=getCreateProcessInfo()->fileInfo.nImageBase)
         {
-            // TODO
-            qDebug("Relocs Present");
+            _messageString(MESSAGE_TYPE_INFO,tr("Relocs present"));
         }
 
         QList<qint64> listRelocs=getRelocsList();

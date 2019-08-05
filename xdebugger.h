@@ -75,6 +75,7 @@ public:
     QString read_unicodeString(qint64 nAddress,qint64 nMaxSize=256);
     quint32 read_uint32(qint64 nAddress);
     quint64 read_uint64(qint64 nAddress);
+    void write_uint32(qint64 nAddress,quint32 nValue);
 
     qint64 findSignature(qint64 nAddress, qint64 nSize, QString sSignature);
     void skipFunction(HANDLE hThread, quint32 nNumberOfParameters,quint64 nResult);
@@ -103,6 +104,7 @@ protected:
         quint64 nImageBase;
         quint32 nResourceRVA;
         quint32 nResourceSize;
+        bool bIsTLSPresent;
     };
 
     struct CREATEPROCESS_INFO
@@ -115,7 +117,7 @@ protected:
         qint64 nStartAddress;
         qint64 nThreadLocalBase;
 
-        RAW_HEADER_INFO headerInfo;
+        RAW_HEADER_INFO fileInfo;
     };
     struct STATS
     {
@@ -175,19 +177,19 @@ protected:
 
     virtual void _clear();
 
-    virtual void onCreateProcessDebugEvent(CREATEPROCESS_INFO *pCreateProcessInfo) {}
-    virtual void onCreateThreadDebugEvent(CREATETHREAD_INFO *pCreateThreadInfo) {}
-    virtual void onExitProcessDebugEvent(EXITPROCESS_INFO *pExitProcessInfo) {}
-    virtual void onExitThreadDebugEvent(EXITTHREAD_INFO *pExitThreadInfo) {}
-    virtual void onLoadDllDebugEvent(DLL_INFO *pDllInfo) {}
-    virtual void onUnloadDllDebugEvent(DLL_INFO *pDllInfo) {}
-    virtual void onOutputDebugStringEvent(DEBUG_EVENT *pDebugEvent) {}
-    virtual void onRipEvent(DEBUG_EVENT *pDebugEvent) {}
-    virtual void onEntryPoint(ENTRYPOINT_INFO *pEntryPointInfo) {}
-    virtual void onBreakPoint(BREAKPOINT *pBp) {}
-    virtual void onFunctionEnter(FUNCTION_INFO *pFunctionInfo) {}
-    virtual void onFunctionLeave(FUNCTION_INFO *pFunctionInfo) {}
-    virtual void onStep(STEP *pStep) {}
+    virtual void onCreateProcessDebugEvent(CREATEPROCESS_INFO *pCreateProcessInfo)  {Q_UNUSED(pCreateProcessInfo)}
+    virtual void onCreateThreadDebugEvent(CREATETHREAD_INFO *pCreateThreadInfo)     {Q_UNUSED(pCreateThreadInfo)}
+    virtual void onExitProcessDebugEvent(EXITPROCESS_INFO *pExitProcessInfo)        {Q_UNUSED(pExitProcessInfo)}
+    virtual void onExitThreadDebugEvent(EXITTHREAD_INFO *pExitThreadInfo)           {Q_UNUSED(pExitThreadInfo)}
+    virtual void onLoadDllDebugEvent(DLL_INFO *pDllInfo)                            {Q_UNUSED(pDllInfo)}
+    virtual void onUnloadDllDebugEvent(DLL_INFO *pDllInfo)                          {Q_UNUSED(pDllInfo)}
+    virtual void onOutputDebugStringEvent(DEBUG_EVENT *pDebugEvent)                 {Q_UNUSED(pDebugEvent)} // TODO Check
+    virtual void onRipEvent(DEBUG_EVENT *pDebugEvent)                               {Q_UNUSED(pDebugEvent)}
+    virtual void onEntryPoint(ENTRYPOINT_INFO *pEntryPointInfo)                     {Q_UNUSED(pEntryPointInfo)}
+    virtual void onBreakPoint(BREAKPOINT *pBp)                                      {Q_UNUSED(pBp)}
+    virtual void onFunctionEnter(FUNCTION_INFO *pFunctionInfo)                      {Q_UNUSED(pFunctionInfo)}
+    virtual void onFunctionLeave(FUNCTION_INFO *pFunctionInfo)                      {Q_UNUSED(pFunctionInfo)}
+    virtual void onStep(STEP *pStep)                                                {Q_UNUSED(pStep)}
     // TODO onException
 
     bool setBP(qint64 nAddress,BP_TYPE bpType=BP_TYPE_CC,BP_INFO bpInfo=BP_INFO_UNKNOWN,qint32 nCount=-1,QVariant vInfo=QVariant());
