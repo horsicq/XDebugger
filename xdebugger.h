@@ -21,6 +21,7 @@
 #ifndef XDEBUGGER_H
 #define XDEBUGGER_H
 
+#include <QApplication>
 #include <QObject>
 #include <QMap>
 #include <QFileInfo>
@@ -90,9 +91,17 @@ private:
     bool _setIP(HANDLE hThread,qint64 nAddress);
     bool _setStep(HANDLE hThread);
 
+    enum LOAD_TYPE
+    {
+        LOAD_TYPE_EXE,
+        LOAD_TYPE_DLL
+    };
+
+    bool _loadFile(QString sFileName,LOAD_TYPE loadType,OPTIONS *pOptions=nullptr);
+    void _getFileInfo(QString sFileName);
 
 protected:
-    struct RAW_HEADER_INFO
+    struct FILE_INFO
     {
         quint16 nMachine;
         quint16 nCharacteristics;
@@ -105,6 +114,15 @@ protected:
         quint32 nResourceRVA;
         quint32 nResourceSize;
         bool bIsTLSPresent;
+        quint32 nAddressOfEntryPoint;
+    };
+
+    struct TARGET_INFO
+    {
+        QString sFileName;
+        qint64 nImageBase;
+        qint64 nImageSize;
+        qint64 nStartAddress;
     };
 
     struct CREATEPROCESS_INFO
@@ -113,11 +131,8 @@ protected:
         HANDLE hThread;
         QString sFileName;
         qint64 nImageBase;
-        qint64 nImageSize;
         qint64 nStartAddress;
         qint64 nThreadLocalBase;
-
-        RAW_HEADER_INFO fileInfo;
     };
     struct STATS
     {
@@ -152,7 +167,8 @@ protected:
     enum BP_INFO
     {
         BP_INFO_UNKNOWN=0,
-        BP_INFO_ENTRYPOINT,
+        BP_INFO_PROCESS_ENTRYPOINT,
+        BP_INFO_TARGETDLL_ENTRYPOINT,
         BP_INFO_API_ENTER,
         BP_INFO_API_LEAVE,
         BP_INFO_USER
@@ -176,7 +192,7 @@ protected:
     };
 
     virtual void _clear();
-
+    virtual void onFileLoad(XPE *pPE)                                               {Q_UNUSED(pPE)}
     virtual void onCreateProcessDebugEvent(CREATEPROCESS_INFO *pCreateProcessInfo)  {Q_UNUSED(pCreateProcessInfo)}
     virtual void onCreateThreadDebugEvent(CREATETHREAD_INFO *pCreateThreadInfo)     {Q_UNUSED(pCreateThreadInfo)}
     virtual void onExitProcessDebugEvent(EXITPROCESS_INFO *pExitProcessInfo)        {Q_UNUSED(pExitProcessInfo)}
@@ -185,7 +201,8 @@ protected:
     virtual void onUnloadDllDebugEvent(DLL_INFO *pDllInfo)                          {Q_UNUSED(pDllInfo)}
     virtual void onOutputDebugStringEvent(DEBUG_EVENT *pDebugEvent)                 {Q_UNUSED(pDebugEvent)} // TODO Check
     virtual void onRipEvent(DEBUG_EVENT *pDebugEvent)                               {Q_UNUSED(pDebugEvent)}
-    virtual void onEntryPoint(ENTRYPOINT_INFO *pEntryPointInfo)                     {Q_UNUSED(pEntryPointInfo)}
+    virtual void onProcessEntryPoint(ENTRYPOINT_INFO *pEntryPointInfo)              {Q_UNUSED(pEntryPointInfo)}
+    virtual void onTargetEntryPoint(ENTRYPOINT_INFO *pEntryPointInfo)               {Q_UNUSED(pEntryPointInfo)}
     virtual void onBreakPoint(BREAKPOINT *pBp)                                      {Q_UNUSED(pBp)}
     virtual void onFunctionEnter(FUNCTION_INFO *pFunctionInfo)                      {Q_UNUSED(pFunctionInfo)}
     virtual void onFunctionLeave(FUNCTION_INFO *pFunctionInfo)                      {Q_UNUSED(pFunctionInfo)}
@@ -215,10 +232,9 @@ protected:
 
     quint64 getRegister(HANDLE hThread,REG_NAME regName);
     bool setRegister(HANDLE hThread,REG_NAME regName,quint64 nValue);
-    CREATEPROCESS_INFO *getCreateProcessInfo();
-
+    TARGET_INFO *getTargetInfo();
+    FILE_INFO *getFileInfo();
     qint64 _getRetAddress(HANDLE hThread);
-
     void _messageString(MESSAGE_TYPE type,QString sText);
 
 signals:
@@ -228,6 +244,8 @@ private:
     XDebugger::OPTIONS options;
     quint32 nProcessId;
     CREATEPROCESS_INFO createProcessInfo;
+    FILE_INFO fileInfo;
+    TARGET_INFO targetInfo;
     STATS stats;
     QMap<qint64,DLL_INFO> mapDLL;
     QMap<qint64,BREAKPOINT> mapBP;

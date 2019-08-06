@@ -27,313 +27,19 @@ XDebugger::XDebugger(QObject *parent) : QObject(parent)
 
 bool XDebugger::loadFile(QString sFileName, XDebugger::OPTIONS *pOptions)
 {
-    bool bSuccess=false;
-    _clear();
+    bool bResult=false;
 
-    if(pOptions)
+    // TODO Check 32/64
+    if(!XPE::isDll(sFileName))
     {
-        options=*pOptions;
-    }
-
-    qint32 nFlags=DEBUG_PROCESS|DEBUG_ONLY_THIS_PROCESS|CREATE_SUSPENDED;
-
-    if(!options.bShowWindow)
-    {
-        nFlags|=CREATE_NO_WINDOW;
-    }
-
-    PROCESS_INFORMATION processInfo= {};
-    STARTUPINFOW sturtupInfo= {};
-
-    // TODO 32/64
-    sturtupInfo.cb=sizeof(sturtupInfo);
-
-    if(CreateProcessW((const wchar_t*)sFileName.utf16(),nullptr,nullptr,nullptr,0,nFlags,nullptr,nullptr,&sturtupInfo,&processInfo))
-    {
-        QFile file;
-
-        file.setFileName(sFileName);
-
-        if(file.open(QIODevice::ReadOnly))
-        {
-            XPE pe(&file);
-
-            createProcessInfo.fileInfo.nMachine=pe.getFileHeader_Machine();
-            createProcessInfo.fileInfo.nCharacteristics=pe.getFileHeader_Characteristics();
-            createProcessInfo.fileInfo.nMagic=pe.getOptionalHeader_Magic();
-            createProcessInfo.fileInfo.nSubsystem=pe.getOptionalHeader_Subsystem();
-            createProcessInfo.fileInfo.nDllcharacteristics=pe.getOptionalHeader_DllCharacteristics();
-            createProcessInfo.fileInfo.nMajorOperationSystemVersion=pe.getOptionalHeader_MajorOperatingSystemVersion();
-            createProcessInfo.fileInfo.nMinorOperationSystemVersion=pe.getOptionalHeader_MinorOperatingSystemVersion();
-            createProcessInfo.fileInfo.nImageBase=pe.getOptionalHeader_ImageBase();
-            createProcessInfo.fileInfo.nResourceRVA=pe.getOptionalHeader_DataDirectory(XPE_DEF::S_IMAGE_DIRECTORY_ENTRY_RESOURCE).VirtualAddress;
-            createProcessInfo.fileInfo.nResourceSize=pe.getOptionalHeader_DataDirectory(XPE_DEF::S_IMAGE_DIRECTORY_ENTRY_RESOURCE).Size;
-            createProcessInfo.fileInfo.bIsTLSPresent=pe.isTLSPresent();
-
-            file.close();
-        }
-
-        nProcessId=processInfo.dwProcessId;
-
-        if(ResumeThread(processInfo.hThread)!=((DWORD)-1))
-        {
-            BREAKPOINT bpRestore= {};
-            bool bRestoreBP=false;
-            QMap<quint64,FUNCTION_INFO> mapAPI;
-
-            while(true)
-            {
-                DEBUG_EVENT DBGEvent= {0};
-                WaitForDebugEvent(&DBGEvent, INFINITE);
-
-                quint32 nStatus=DBG_CONTINUE;
-
-                if(DBGEvent.dwProcessId==nProcessId)
-                {
-                    if(DBGEvent.dwDebugEventCode==CREATE_PROCESS_DEBUG_EVENT)
-                    {
-                        createProcessInfo.hProcess=DBGEvent.u.CreateProcessInfo.hProcess;
-                        createProcessInfo.hThread=DBGEvent.u.CreateProcessInfo.hThread;
-                        createProcessInfo.nImageBase=(qint64)DBGEvent.u.CreateProcessInfo.lpBaseOfImage;
-                        createProcessInfo.nImageSize=XProcess::getImageSize(getProcessHandle(),createProcessInfo.nImageBase);
-                        createProcessInfo.nStartAddress=(qint64)DBGEvent.u.CreateProcessInfo.lpStartAddress;
-                        createProcessInfo.sFileName=XProcess::getFileNameByHandle(DBGEvent.u.CreateProcessInfo.hFile);
-                        createProcessInfo.nThreadLocalBase=(qint64)DBGEvent.u.CreateProcessInfo.lpThreadLocalBase;
-
-                        setBP(createProcessInfo.nStartAddress,BP_TYPE_CC,BP_INFO_ENTRYPOINT,1);
-
-                        mapThreads.insert(XProcess::getThreadIDByHandle(createProcessInfo.hThread),DBGEvent.u.CreateProcessInfo.hThread);
-
-                        // Get parameters
-
-//                        XProcessDevice xpd(this);
-
-//                        if(xpd.openHandle(getProcessHandle(),createProcessInfo.nImageBase,createProcessInfo.nImageSize,QIODevice::ReadOnly))
-//                        {
-//                            XPE pe(&xpd,true,createProcessInfo.nImageBase);
-
-//                            if(pe.isValid())
-//                            {
-//                                createProcessInfo.headerInfo.nMachine=pe.getFileHeader_Machine();
-//                                createProcessInfo.headerInfo.nCharacteristics=pe.getFileHeader_Characteristics();
-//                                createProcessInfo.headerInfo.nMagic=pe.getOptionalHeader_Magic();
-//                                createProcessInfo.headerInfo.nImageBase=pe.getOptionalHeader_ImageBase();
-//                                createProcessInfo.headerInfo.nResourceRVA=pe.getOptionalHeader_DataDirectory(XPE_DEF::S_IMAGE_DIRECTORY_ENTRY_RESOURCE).VirtualAddress;
-//                                createProcessInfo.headerInfo.nResourceSize=pe.getOptionalHeader_DataDirectory(XPE_DEF::S_IMAGE_DIRECTORY_ENTRY_RESOURCE).Size;
-//                            }
-
-//                            xpd.close();
-//                        }
-
-                        onCreateProcessDebugEvent(&createProcessInfo);
-                    }
-                    else if(DBGEvent.dwDebugEventCode==CREATE_THREAD_DEBUG_EVENT)
-                    {
-                        CREATETHREAD_INFO createThreadInfo= {};
-
-                        createThreadInfo.hThread=DBGEvent.u.CreateThread.hThread;
-                        createThreadInfo.nStartAddress=(qint64)DBGEvent.u.CreateThread.lpStartAddress;
-                        createThreadInfo.nThreadLocalBase=(qint64)DBGEvent.u.CreateThread.lpThreadLocalBase;
-
-                        mapThreads.insert(XProcess::getThreadIDByHandle(DBGEvent.u.CreateThread.hThread),DBGEvent.u.CreateThread.hThread);
-
-                        onCreateThreadDebugEvent(&createThreadInfo);
-                    }
-                    else if(DBGEvent.dwDebugEventCode==EXIT_PROCESS_DEBUG_EVENT)
-                    {
-                        EXITPROCESS_INFO exitProcessInfo= {};
-
-                        exitProcessInfo.nExitCode=(qint32)DBGEvent.u.ExitProcess.dwExitCode;
-
-                        mapThreads.remove(DBGEvent.dwThreadId);
-
-                        onExitProcessDebugEvent(&exitProcessInfo);
-
-                        break;
-                    }
-                    else if(DBGEvent.dwDebugEventCode==EXIT_THREAD_DEBUG_EVENT)
-                    {
-                        EXITTHREAD_INFO exitThreadInfo= {};
-
-                        exitThreadInfo.nExitCode=(qint32)DBGEvent.u.ExitThread.dwExitCode;
-
-                        mapThreads.remove(DBGEvent.dwThreadId);
-
-                        onExitThreadDebugEvent(&exitThreadInfo);
-                    }
-                    else if(DBGEvent.dwDebugEventCode==LOAD_DLL_DEBUG_EVENT)
-                    {
-                        DLL_INFO dllInfo= {};
-                        dllInfo.nImageBase=(qint64)DBGEvent.u.LoadDll.lpBaseOfDll;
-                        dllInfo.nImageSize=XProcess::getImageSize(getProcessHandle(),dllInfo.nImageBase);
-                        dllInfo.sFileName=XProcess::getFileNameByHandle(DBGEvent.u.LoadDll.hFile);
-                        dllInfo.sName=QFileInfo(dllInfo.sFileName).fileName();
-
-                        mapDLL.insert(dllInfo.nImageBase,dllInfo);
-
-                        // Add hooks if needed
-                        QSetIterator<QString> i(stAPIHooks);
-
-                        while(i.hasNext())
-                        {
-                            QString sFunctionName=i.next();
-                            _addAPIHook(dllInfo,sFunctionName);
-                        }
-
-                        onLoadDllDebugEvent(&dllInfo);
-                    }
-                    else if(DBGEvent.dwDebugEventCode==UNLOAD_DLL_DEBUG_EVENT)
-                    {
-                        qint64 nDllBase=(qint64)DBGEvent.u.UnloadDll.lpBaseOfDll;
-                        DLL_INFO dllInfo=mapDLL.value(nDllBase);
-
-                        mapDLL.remove(nDllBase);
-
-                        onUnloadDllDebugEvent(&dllInfo);
-                    }
-                    else if(DBGEvent.dwDebugEventCode==OUTPUT_DEBUG_STRING_EVENT)
-                    {
-                        onOutputDebugStringEvent(&DBGEvent);
-                    }
-                    else if(DBGEvent.dwDebugEventCode==RIP_EVENT)
-                    {
-                        onRipEvent(&DBGEvent);
-                    }
-                    else if(DBGEvent.dwDebugEventCode==EXCEPTION_DEBUG_EVENT)
-                    {
-                        EXCEPTION_DEBUG_INFO edi=DBGEvent.u.Exception;
-                        qint64 nExceptionAddress=(qint64)edi.ExceptionRecord.ExceptionAddress;
-                        quint32 nExceptionCode=(quint32)edi.ExceptionRecord.ExceptionCode;
-                        HANDLE hThread=mapThreads.value(DBGEvent.dwThreadId);
-
-                        nStatus=DBG_EXCEPTION_NOT_HANDLED;
-
-                        if(nExceptionCode==EXCEPTION_BREAKPOINT)
-                        {
-                            if(mapBP.contains(nExceptionAddress))
-                            {
-                                // TODO multithreads
-                                // Stop all another threads mb as options?
-                                BREAKPOINT bp=mapBP.value(nExceptionAddress);
-                                bp.hThread=hThread;
-
-                                if(bp.nCount!=-1)
-                                {
-                                    bp.nCount--;
-                                }
-
-                                if(bp.nCount)
-                                {
-                                    bpRestore=bp;
-                                    bRestoreBP=true;
-                                }
-
-                                _setIP(mapThreads.value(DBGEvent.dwThreadId),nExceptionAddress);
-
-                                removeBP(nExceptionAddress);
-
-                                if(bp.bpInfo==BP_INFO_ENTRYPOINT)
-                                {
-                                    ENTRYPOINT_INFO entryPointInfo= {};
-
-                                    entryPointInfo.nAddress=nExceptionAddress;
-                                    entryPointInfo.hThread=hThread;
-
-                                    onEntryPoint(&entryPointInfo);
-                                }
-                                else if(bp.bpInfo==BP_INFO_API_ENTER)
-                                {
-                                    FUNCTION_INFO functionInfo= {};
-                                    functionInfo.hThread=hThread;
-                                    functionInfo.nAddress=bp.nAddress;
-                                    functionInfo.nRetAddress=_getRetAddress(hThread);
-                                    functionInfo.sName=bp.vInfo.toString();
-                                    functionInfo.nStackFrame=(qint64)getRegister(functionInfo.hThread,REG_NAME_ESP);
-
-                                    onFunctionEnter(&functionInfo);
-
-                                    quint64 nID=XBinary::random64();
-                                    mapAPI.insert(nID,functionInfo);
-
-                                    setBP(functionInfo.nRetAddress,BP_TYPE_CC,BP_INFO_API_LEAVE,1,nID);
-                                }
-                                else if(bp.bpInfo==BP_INFO_API_LEAVE)
-                                {
-                                    quint64 nID=bp.vInfo.toULongLong();
-                                    FUNCTION_INFO functionInfo=mapAPI.value(nID);
-
-                                    onFunctionLeave(&functionInfo);
-                                    mapAPI.remove(nID);
-                                }
-                                else
-                                {
-                                    onBreakPoint(&bp);
-                                }
-
-                                if(bRestoreBP)
-                                {
-                                    _setStep(mapThreads.value(DBGEvent.dwThreadId));
-                                }
-
-                                nStatus=DBG_CONTINUE;
-                            }
-                        }
-                        else if(nExceptionCode==EXCEPTION_SINGLE_STEP)
-                        {
-                            if(bRestoreBP)
-                            {
-                                setBP(bpRestore.nAddress,bpRestore.bpType,bpRestore.bpInfo,bpRestore.nCount,bpRestore.vInfo);
-                                bRestoreBP=false;
-                                nStatus=DBG_CONTINUE;
-                            }
-
-                            if(stats.bStepInto)
-                            {
-                                STEP step={};
-
-                                step.nAddress=nExceptionAddress;
-                                step.hThread=hThread;
-                                step.vInfo=stats.vStepIntoInfo;
-
-                                stats.bStepInto=false;
-                                stats.vStepIntoInfo.clear();
-
-                                onStep(&step);
-
-                                nStatus=DBG_CONTINUE;
-                            }
-                        }
-                        else if(nExceptionCode==EXCEPTION_GUARD_PAGE)
-                        {
-
-                        }
-                        else if(nExceptionCode==EXCEPTION_ACCESS_VIOLATION)
-                        {
-
-                        }
-                        else if(nExceptionCode==EXCEPTION_ILLEGAL_INSTRUCTION)
-                        {
-
-                        }
-                        else if(nExceptionCode==EXCEPTION_INT_DIVIDE_BY_ZERO)
-                        {
-
-                        }
-                    }
-                }
-
-                ContinueDebugEvent(DBGEvent.dwProcessId,DBGEvent.dwThreadId,nStatus);
-            }
-
-            bSuccess=true;
-        }
+        bResult=_loadFile(sFileName,LOAD_TYPE_EXE,pOptions);
     }
     else
     {
-        _messageString(MESSAGE_TYPE_ERROR,QString("%1: %2").arg(tr("Cannot load file")).arg(sFileName));
+        bResult=_loadFile(sFileName,LOAD_TYPE_DLL,pOptions);
     }
 
-    return bSuccess;
+    return bResult;
 }
 
 HANDLE XDebugger::getProcessHandle()
@@ -625,7 +331,7 @@ bool XDebugger::isAddressInImage(qint64 nAddress)
 {
     bool bResult=false;
 
-    if((createProcessInfo.nImageBase<=nAddress)&&(nAddress<createProcessInfo.nImageBase+createProcessInfo.nImageSize))
+    if((targetInfo.nImageBase<=nAddress)&&(nAddress<targetInfo.nImageBase+targetInfo.nImageSize))
     {
         bResult=true;
     }
@@ -743,9 +449,14 @@ bool XDebugger::setRegister(HANDLE hThread, XDebugger::REG_NAME regName, quint64
     return bResult;
 }
 
-XDebugger::CREATEPROCESS_INFO *XDebugger::getCreateProcessInfo()
+XDebugger::TARGET_INFO *XDebugger::getTargetInfo()
 {
-    return &createProcessInfo;
+    return &targetInfo;
+}
+
+XDebugger::FILE_INFO *XDebugger::getFileInfo()
+{
+    return &fileInfo;
 }
 
 void XDebugger::_clear()
@@ -753,6 +464,8 @@ void XDebugger::_clear()
     options={};
     nProcessId=0;
     createProcessInfo={};
+    fileInfo={};
+    targetInfo={};
     stats={};
     mapDLL.clear();
     mapBP.clear();
@@ -801,6 +514,375 @@ bool XDebugger::_setStep(HANDLE hThread)
     }
 
     return bResult;
+}
+
+bool XDebugger::_loadFile(QString sFileName, XDebugger::LOAD_TYPE loadType, XDebugger::OPTIONS *pOptions)
+{
+    bool bSuccess=false;
+    _clear();
+
+    if(pOptions)
+    {
+        options=*pOptions;
+    }
+
+    qint32 nFlags=DEBUG_PROCESS|DEBUG_ONLY_THIS_PROCESS|CREATE_SUSPENDED;
+
+    if(!options.bShowWindow)
+    {
+        nFlags|=CREATE_NO_WINDOW;
+    }
+
+    PROCESS_INFORMATION processInfo= {};
+    STARTUPINFOW sturtupInfo= {};
+
+    // TODO 32/64
+    sturtupInfo.cb=sizeof(sturtupInfo);
+
+    BOOL _bCreateProcess=FALSE;
+
+    QString _sFileName;
+    QString _sArgument;
+
+    QString sTargetMD5;
+
+    if(loadType==LOAD_TYPE_EXE)
+    {
+        _sFileName=sFileName;
+        _bCreateProcess=CreateProcessW((const wchar_t*)_sFileName.utf16(),nullptr,nullptr,nullptr,0,nFlags,nullptr,nullptr,&sturtupInfo,&processInfo);
+    }
+    else if(loadType==LOAD_TYPE_DLL)
+    {
+        _sFileName=qApp->applicationDirPath()+QDir::separator()+"LibraryLoader32.exe"; // TODO 64
+        _sArgument=QString("\"%1\"").arg(sFileName);
+        sTargetMD5=XBinary::getMD5(sFileName);
+//        _sArgument=sFileName;
+        _bCreateProcess=CreateProcessW((const wchar_t*)_sFileName.utf16(),(wchar_t*)_sArgument.utf16(),nullptr,nullptr,0,nFlags,nullptr,nullptr,&sturtupInfo,&processInfo);
+    }
+
+    if(_bCreateProcess)
+    {
+        nProcessId=processInfo.dwProcessId;
+
+        if(ResumeThread(processInfo.hThread)!=((DWORD)-1))
+        {
+            BREAKPOINT bpRestore= {};
+            bool bRestoreBP=false;
+            QMap<quint64,FUNCTION_INFO> mapAPI;
+
+            bool bLoaded=false;
+            bool bTargetDLLLoaded=false;
+
+            while(true)
+            {
+                DEBUG_EVENT DBGEvent= {0};
+                WaitForDebugEvent(&DBGEvent, INFINITE);
+
+                quint32 nStatus=DBG_CONTINUE;
+
+                if(DBGEvent.dwProcessId==nProcessId)
+                {
+                    if(DBGEvent.dwDebugEventCode==CREATE_PROCESS_DEBUG_EVENT)
+                    {
+                        createProcessInfo.hProcess=DBGEvent.u.CreateProcessInfo.hProcess;
+                        createProcessInfo.hThread=DBGEvent.u.CreateProcessInfo.hThread;
+                        createProcessInfo.nImageBase=(qint64)DBGEvent.u.CreateProcessInfo.lpBaseOfImage;
+                        createProcessInfo.nStartAddress=(qint64)DBGEvent.u.CreateProcessInfo.lpStartAddress;
+                        createProcessInfo.sFileName=XProcess::getFileNameByHandle(DBGEvent.u.CreateProcessInfo.hFile);
+                        createProcessInfo.nThreadLocalBase=(qint64)DBGEvent.u.CreateProcessInfo.lpThreadLocalBase;
+
+                        if(loadType==LOAD_TYPE_EXE)
+                        {
+                            _getFileInfo(createProcessInfo.sFileName);
+
+                            targetInfo.sFileName=createProcessInfo.sFileName;
+                            targetInfo.nImageBase=createProcessInfo.nImageBase;
+                            targetInfo.nImageSize=XProcess::getImageSize(getProcessHandle(),createProcessInfo.nImageBase);
+                            targetInfo.nStartAddress=createProcessInfo.nStartAddress;
+                        }
+
+                        setBP(createProcessInfo.nStartAddress,BP_TYPE_CC,BP_INFO_PROCESS_ENTRYPOINT,1);
+
+                        mapThreads.insert(XProcess::getThreadIDByHandle(createProcessInfo.hThread),DBGEvent.u.CreateProcessInfo.hThread);
+
+                        onCreateProcessDebugEvent(&createProcessInfo);
+                    }
+                    else if(DBGEvent.dwDebugEventCode==CREATE_THREAD_DEBUG_EVENT)
+                    {
+                        CREATETHREAD_INFO createThreadInfo= {};
+
+                        createThreadInfo.hThread=DBGEvent.u.CreateThread.hThread;
+                        createThreadInfo.nStartAddress=(qint64)DBGEvent.u.CreateThread.lpStartAddress;
+                        createThreadInfo.nThreadLocalBase=(qint64)DBGEvent.u.CreateThread.lpThreadLocalBase;
+
+                        mapThreads.insert(XProcess::getThreadIDByHandle(DBGEvent.u.CreateThread.hThread),DBGEvent.u.CreateThread.hThread);
+
+                        onCreateThreadDebugEvent(&createThreadInfo);
+                    }
+                    else if(DBGEvent.dwDebugEventCode==EXIT_PROCESS_DEBUG_EVENT)
+                    {
+                        EXITPROCESS_INFO exitProcessInfo= {};
+
+                        exitProcessInfo.nExitCode=(qint32)DBGEvent.u.ExitProcess.dwExitCode;
+
+                        mapThreads.remove(DBGEvent.dwThreadId);
+
+                        onExitProcessDebugEvent(&exitProcessInfo);
+
+                        break;
+                    }
+                    else if(DBGEvent.dwDebugEventCode==EXIT_THREAD_DEBUG_EVENT)
+                    {
+                        EXITTHREAD_INFO exitThreadInfo= {};
+
+                        exitThreadInfo.nExitCode=(qint32)DBGEvent.u.ExitThread.dwExitCode;
+
+                        mapThreads.remove(DBGEvent.dwThreadId);
+
+                        onExitThreadDebugEvent(&exitThreadInfo);
+                    }
+                    else if(DBGEvent.dwDebugEventCode==LOAD_DLL_DEBUG_EVENT)
+                    {
+                        DLL_INFO dllInfo= {};
+                        dllInfo.nImageBase=(qint64)DBGEvent.u.LoadDll.lpBaseOfDll;
+                        dllInfo.nImageSize=XProcess::getImageSize(getProcessHandle(),dllInfo.nImageBase);
+                        dllInfo.sFileName=XProcess::getFileNameByHandle(DBGEvent.u.LoadDll.hFile);
+                        dllInfo.sName=QFileInfo(dllInfo.sFileName).fileName();
+
+                        mapDLL.insert(dllInfo.nImageBase,dllInfo);
+
+                        // Add hooks if needed
+                        QSetIterator<QString> i(stAPIHooks);
+
+                        while(i.hasNext())
+                        {
+                            QString sFunctionName=i.next();
+                            _addAPIHook(dllInfo,sFunctionName);
+                        }
+
+                        onLoadDllDebugEvent(&dllInfo);
+
+                        if((bLoaded)&&(!bTargetDLLLoaded))
+                        {
+                            QString _sTargetMD5=XBinary::getMD5(dllInfo.sFileName);
+
+                            if(_sTargetMD5==sTargetMD5)
+                            {
+                                _getFileInfo(dllInfo.sFileName);
+
+                                targetInfo.sFileName=dllInfo.sFileName;
+                                targetInfo.nImageBase=dllInfo.nImageBase;
+                                targetInfo.nImageSize=XProcess::getImageSize(getProcessHandle(),dllInfo.nImageBase);
+                                targetInfo.nStartAddress=fileInfo.nAddressOfEntryPoint+targetInfo.nImageBase;
+
+                                setBP(targetInfo.nStartAddress,BP_TYPE_CC,BP_INFO_TARGETDLL_ENTRYPOINT,1);
+
+                                bTargetDLLLoaded=true;
+                            }
+                        }
+                    }
+                    else if(DBGEvent.dwDebugEventCode==UNLOAD_DLL_DEBUG_EVENT)
+                    {
+                        qint64 nDllBase=(qint64)DBGEvent.u.UnloadDll.lpBaseOfDll;
+                        DLL_INFO dllInfo=mapDLL.value(nDllBase);
+
+                        mapDLL.remove(nDllBase);
+
+                        onUnloadDllDebugEvent(&dllInfo);
+                    }
+                    else if(DBGEvent.dwDebugEventCode==OUTPUT_DEBUG_STRING_EVENT)
+                    {
+                        onOutputDebugStringEvent(&DBGEvent);
+                    }
+                    else if(DBGEvent.dwDebugEventCode==RIP_EVENT)
+                    {
+                        onRipEvent(&DBGEvent);
+                    }
+                    else if(DBGEvent.dwDebugEventCode==EXCEPTION_DEBUG_EVENT)
+                    {
+                        EXCEPTION_DEBUG_INFO edi=DBGEvent.u.Exception;
+                        qint64 nExceptionAddress=(qint64)edi.ExceptionRecord.ExceptionAddress;
+                        quint32 nExceptionCode=(quint32)edi.ExceptionRecord.ExceptionCode;
+                        HANDLE hThread=mapThreads.value(DBGEvent.dwThreadId);
+
+                        nStatus=DBG_EXCEPTION_NOT_HANDLED;
+
+                        if(nExceptionCode==EXCEPTION_BREAKPOINT)
+                        {
+                            if(mapBP.contains(nExceptionAddress))
+                            {
+                                // TODO multithreads
+                                // Stop all another threads mb as options?
+                                BREAKPOINT bp=mapBP.value(nExceptionAddress);
+                                bp.hThread=hThread;
+
+                                if(bp.nCount!=-1)
+                                {
+                                    bp.nCount--;
+                                }
+
+                                if(bp.nCount)
+                                {
+                                    bpRestore=bp;
+                                    bRestoreBP=true;
+                                }
+
+                                _setIP(mapThreads.value(DBGEvent.dwThreadId),nExceptionAddress);
+
+                                removeBP(nExceptionAddress);
+
+                                if(bp.bpInfo==BP_INFO_PROCESS_ENTRYPOINT)
+                                {
+                                    bLoaded=true;
+
+                                    ENTRYPOINT_INFO entryPointInfo= {};
+
+                                    entryPointInfo.nAddress=nExceptionAddress;
+                                    entryPointInfo.hThread=hThread;
+
+                                    onProcessEntryPoint(&entryPointInfo);
+                                    if(loadType==LOAD_TYPE_EXE)
+                                    {
+                                        onTargetEntryPoint(&entryPointInfo);
+                                    }
+                                }
+                                else if(bp.bpInfo==BP_INFO_TARGETDLL_ENTRYPOINT)
+                                {
+                                    ENTRYPOINT_INFO entryPointInfo= {};
+
+                                    entryPointInfo.nAddress=nExceptionAddress;
+                                    entryPointInfo.hThread=hThread;
+
+                                    if(loadType==LOAD_TYPE_DLL)
+                                    {
+                                        onTargetEntryPoint(&entryPointInfo);
+                                    }
+                                }
+                                else if(bp.bpInfo==BP_INFO_API_ENTER)
+                                {
+                                    FUNCTION_INFO functionInfo= {};
+                                    functionInfo.hThread=hThread;
+                                    functionInfo.nAddress=bp.nAddress;
+                                    functionInfo.nRetAddress=_getRetAddress(hThread);
+                                    functionInfo.sName=bp.vInfo.toString();
+                                    functionInfo.nStackFrame=(qint64)getRegister(functionInfo.hThread,REG_NAME_ESP);
+
+                                    onFunctionEnter(&functionInfo);
+
+                                    quint64 nID=XBinary::random64();
+                                    mapAPI.insert(nID,functionInfo);
+
+                                    setBP(functionInfo.nRetAddress,BP_TYPE_CC,BP_INFO_API_LEAVE,1,nID);
+                                }
+                                else if(bp.bpInfo==BP_INFO_API_LEAVE)
+                                {
+                                    quint64 nID=bp.vInfo.toULongLong();
+                                    FUNCTION_INFO functionInfo=mapAPI.value(nID);
+
+                                    onFunctionLeave(&functionInfo);
+                                    mapAPI.remove(nID);
+                                }
+                                else
+                                {
+                                    onBreakPoint(&bp);
+                                }
+
+                                if(bRestoreBP)
+                                {
+                                    _setStep(mapThreads.value(DBGEvent.dwThreadId));
+                                }
+
+                                nStatus=DBG_CONTINUE;
+                            }
+                        }
+                        else if(nExceptionCode==EXCEPTION_SINGLE_STEP)
+                        {
+                            if(bRestoreBP)
+                            {
+                                setBP(bpRestore.nAddress,bpRestore.bpType,bpRestore.bpInfo,bpRestore.nCount,bpRestore.vInfo);
+                                bRestoreBP=false;
+                                nStatus=DBG_CONTINUE;
+                            }
+
+                            if(stats.bStepInto)
+                            {
+                                STEP step={};
+
+                                step.nAddress=nExceptionAddress;
+                                step.hThread=hThread;
+                                step.vInfo=stats.vStepIntoInfo;
+
+                                stats.bStepInto=false;
+                                stats.vStepIntoInfo.clear();
+
+                                onStep(&step);
+
+                                nStatus=DBG_CONTINUE;
+                            }
+                        }
+                        else if(nExceptionCode==EXCEPTION_GUARD_PAGE)
+                        {
+
+                        }
+                        else if(nExceptionCode==EXCEPTION_ACCESS_VIOLATION)
+                        {
+
+                        }
+                        else if(nExceptionCode==EXCEPTION_ILLEGAL_INSTRUCTION)
+                        {
+
+                        }
+                        else if(nExceptionCode==EXCEPTION_INT_DIVIDE_BY_ZERO)
+                        {
+
+                        }
+                    }
+                }
+
+                ContinueDebugEvent(DBGEvent.dwProcessId,DBGEvent.dwThreadId,nStatus);
+            }
+
+            bSuccess=true;
+        }
+    }
+    else
+    {
+        _messageString(MESSAGE_TYPE_ERROR,QString("%1: %2").arg(tr("Cannot load file")).arg(_sFileName));
+    }
+
+    return bSuccess;
+}
+
+void XDebugger::_getFileInfo(QString sFileName)
+{
+    QFile file;
+
+    file.setFileName(sFileName);
+
+    if(file.open(QIODevice::ReadOnly))
+    {
+        XPE pe(&file);
+
+        if(pe.isValid())
+        {
+            fileInfo.nMachine=pe.getFileHeader_Machine();
+            fileInfo.nCharacteristics=pe.getFileHeader_Characteristics();
+            fileInfo.nMagic=pe.getOptionalHeader_Magic();
+            fileInfo.nSubsystem=pe.getOptionalHeader_Subsystem();
+            fileInfo.nDllcharacteristics=pe.getOptionalHeader_DllCharacteristics();
+            fileInfo.nMajorOperationSystemVersion=pe.getOptionalHeader_MajorOperatingSystemVersion();
+            fileInfo.nMinorOperationSystemVersion=pe.getOptionalHeader_MinorOperatingSystemVersion();
+            fileInfo.nImageBase=pe.getOptionalHeader_ImageBase();
+            fileInfo.nResourceRVA=pe.getOptionalHeader_DataDirectory(XPE_DEF::S_IMAGE_DIRECTORY_ENTRY_RESOURCE).VirtualAddress;
+            fileInfo.nResourceSize=pe.getOptionalHeader_DataDirectory(XPE_DEF::S_IMAGE_DIRECTORY_ENTRY_RESOURCE).Size;
+            fileInfo.bIsTLSPresent=pe.isTLSPresent();
+            fileInfo.nAddressOfEntryPoint=pe.getOptionalHeader_AddressOfEntryPoint();
+
+            onFileLoad(&pe); // TODO move
+        }
+
+        file.close();
+    }
 }
 
 void XDebugger::_messageString(XDebugger::MESSAGE_TYPE type, QString sText)

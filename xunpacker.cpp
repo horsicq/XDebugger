@@ -9,8 +9,8 @@ bool XUnpacker::dumpToFile(QString sFileName, XUnpacker::DUMP_OPTIONS *pDumpOpti
 {
     bool bResult=false;
 
-    qint64 nImageBase=getCreateProcessInfo()->nImageBase;
-    qint64 nImageSize=getCreateProcessInfo()->nImageSize;
+    qint64 nImageBase=getTargetInfo()->nImageBase;
+    qint64 nImageSize=getTargetInfo()->nImageSize;
 
     const int N_BUFFER_SIZE=0x1000;
 
@@ -152,16 +152,16 @@ bool XUnpacker::dumpToFile(QString sFileName, XUnpacker::DUMP_OPTIONS *pDumpOpti
 //        xpd.close();
 //    }
 
-    headerOptions.nMachine=getCreateProcessInfo()->fileInfo.nMachine;
-    headerOptions.nCharacteristics=getCreateProcessInfo()->fileInfo.nCharacteristics;
-    headerOptions.nMagic=getCreateProcessInfo()->fileInfo.nMagic;
-    headerOptions.nImagebase=getCreateProcessInfo()->fileInfo.nImageBase;
-    headerOptions.nDllcharacteristics=getCreateProcessInfo()->fileInfo.nDllcharacteristics;
-    headerOptions.nMajorOperationSystemVersion=getCreateProcessInfo()->fileInfo.nMajorOperationSystemVersion;
-    headerOptions.nMinorOperationSystemVersion=getCreateProcessInfo()->fileInfo.nMinorOperationSystemVersion;
-    headerOptions.nSubsystem=getCreateProcessInfo()->fileInfo.nSubsystem;
-    headerOptions.nResourceRVA=getCreateProcessInfo()->fileInfo.nResourceRVA;
-    headerOptions.nResourceSize=getCreateProcessInfo()->fileInfo.nResourceSize;
+    headerOptions.nMachine=getFileInfo()->nMachine;
+    headerOptions.nCharacteristics=getFileInfo()->nCharacteristics;
+    headerOptions.nMagic=getFileInfo()->nMagic;
+    headerOptions.nImagebase=getFileInfo()->nImageBase;
+    headerOptions.nDllcharacteristics=getFileInfo()->nDllcharacteristics;
+    headerOptions.nMajorOperationSystemVersion=getFileInfo()->nMajorOperationSystemVersion;
+    headerOptions.nMinorOperationSystemVersion=getFileInfo()->nMinorOperationSystemVersion;
+    headerOptions.nSubsystem=getFileInfo()->nSubsystem;
+    headerOptions.nResourceRVA=getFileInfo()->nResourceRVA;
+    headerOptions.nResourceSize=getFileInfo()->nResourceSize;
 
 //    dumpMemoryRegionToFile("C:\\tmp_build\\header.dmp",getCreateProcessInfo()->nImageBase,0x1000);
 
@@ -171,18 +171,7 @@ bool XUnpacker::dumpToFile(QString sFileName, XUnpacker::DUMP_OPTIONS *pDumpOpti
 
 //    QByteArray baHeader=XPE::createHeaderStub(&headerOptions);
 
-    // Patch relocs
-
-    if(getCreateProcessInfo()->fileInfo.bIsTLSPresent)
-    {
-        // TODO TLS
-//        pe.setTLS_AddressOfCallBacks(pe.getTLS_AddressOfCallBacks()-nDelta);
-//        pe.setTLS_AddressOfIndex(pe.getTLS_AddressOfIndex()-nDelta);
-//        pe.setTLS_EndAddressOfRawData(pe.getTLS_EndAddressOfRawData()-nDelta);
-//        pe.setTLS_StartAddressOfRawData(pe.getTLS_StartAddressOfRawData()-nDelta);
-    }
-
-    qint64 nDelta=getCreateProcessInfo()->nImageBase-getCreateProcessInfo()->fileInfo.nImageBase;
+    qint64 nDelta=getTargetInfo()->nImageBase-getFileInfo()->nImageBase;
 
     QMapIterator<qint64, RELOC_BUILD_RECORD> i(mapRelocBuildRecords);
     while(i.hasNext())
@@ -196,7 +185,7 @@ bool XUnpacker::dumpToFile(QString sFileName, XUnpacker::DUMP_OPTIONS *pDumpOpti
         write_uint32(record.nPatchAddress,nValue);
     }
 
-    QByteArray baHeader=read_array(getCreateProcessInfo()->nImageBase,0x200);
+    QByteArray baHeader=read_array(getTargetInfo()->nImageBase,0x200);
 
     QBuffer buBuffer;
     buBuffer.setBuffer(&baHeader);
@@ -231,7 +220,7 @@ bool XUnpacker::dumpToFile(QString sFileName, XUnpacker::DUMP_OPTIONS *pDumpOpti
             pe.addImportSection(&mapImport);
         }
 
-        if(getCreateProcessInfo()->nImageBase!=getCreateProcessInfo()->fileInfo.nImageBase)
+        if(getTargetInfo()->nImageBase!=getFileInfo()->nImageBase)
         {
             _messageString(MESSAGE_TYPE_INFO,tr("Relocs present"));
         }
@@ -343,7 +332,7 @@ QList<qint64> XUnpacker::getRelocsList()
 
         RELOC_BUILD_RECORD record=i.value();
 
-        record.nPatchAddress-=getCreateProcessInfo()->nImageBase;
+        record.nPatchAddress-=getTargetInfo()->nImageBase;
 
         listResult.append(record.nPatchAddress);
     }
