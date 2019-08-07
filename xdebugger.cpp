@@ -208,7 +208,7 @@ quint64 XDebugger::getFunctionParameter(XDebugger::FUNCTION_INFO *pFunctionInfo,
 {
     quint64 nResult=0;
 
-#ifndef X64CFG
+#ifndef Q_OS_WIN64
     qint64 _nStackAddress=pFunctionInfo->nStackFrame+4+4*nNumber;
     nResult=read_uint32(_nStackAddress);
 #else
@@ -279,7 +279,7 @@ qint64 XDebugger::findSignature(qint64 nAddress, qint64 nSize, QString sSignatur
 
 void XDebugger::skipFunction(HANDLE hThread, quint32 nNumberOfParameters, quint64 nResult)
 {
-#ifndef X64CFG
+#ifndef Q_OS_WIN64
         quint32 nESP=getRegister(hThread,REG_NAME_ESP);
         quint32 nRET=read_uint32(nESP);
         nESP+=4+4*nNumberOfParameters;
@@ -394,7 +394,7 @@ quint64 XDebugger::getRegister(HANDLE hThread, XDebugger::REG_NAME regName)
 
     if(GetThreadContext(hThread,&context))
     {
-#ifndef X64CFG
+#ifndef Q_OS_WIN64
         switch(regName)
         {
             case REG_NAME_EAX:  nResult=context.Eax;    break;
@@ -424,7 +424,7 @@ bool XDebugger::setRegister(HANDLE hThread, XDebugger::REG_NAME regName, quint64
 
     if(GetThreadContext(hThread,&context))
     {
-#ifndef X64CFG
+#ifndef Q_OS_WIN64
         switch(regName)
         {
             case REG_NAME_EAX:  context.Eax=(quint32)nValue;    break;
@@ -480,7 +480,7 @@ bool XDebugger::_setIP(HANDLE hThread, qint64 nAddress)
 
     if(GetThreadContext(hThread,&context))
     {
-#ifndef X64CFG
+#ifndef Q_OS_WIN64
         context.Eip=nAddress;
 #else
         context.Rip=nAddress;
@@ -549,12 +549,13 @@ bool XDebugger::_loadFile(QString sFileName, XDebugger::LOAD_TYPE loadType, XDeb
     if(loadType==LOAD_TYPE_EXE)
     {
         _sFileName=sFileName;
-        _bCreateProcess=CreateProcessW((const wchar_t*)_sFileName.utf16(),nullptr,nullptr,nullptr,0,nFlags,nullptr,nullptr,&sturtupInfo,&processInfo);
+        _sArgument=QString("\"%1\" \"%2\"").arg(_sFileName).arg(options.sArgument);
+        _bCreateProcess=CreateProcessW((const wchar_t*)_sFileName.utf16(),(wchar_t*)_sArgument.utf16(),nullptr,nullptr,0,nFlags,nullptr,nullptr,&sturtupInfo,&processInfo);
     }
     else if(loadType==LOAD_TYPE_DLL)
     {
         _sFileName=qApp->applicationDirPath()+QDir::separator()+"LibraryLoader32.exe"; // TODO 64
-        _sArgument=QString("\"%1\"").arg(sFileName);
+        _sArgument=QString("\"%1\" \"%2\"").arg(_sFileName).arg(sFileName);
         sTargetMD5=XBinary::getMD5(sFileName);
 //        _sArgument=sFileName;
         _bCreateProcess=CreateProcessW((const wchar_t*)_sFileName.utf16(),(wchar_t*)_sArgument.utf16(),nullptr,nullptr,0,nFlags,nullptr,nullptr,&sturtupInfo,&processInfo);
@@ -897,7 +898,7 @@ qint64 XDebugger::_getRetAddress(HANDLE hThread)
 
     if(nSP!=(quint64)-1)
     {
-#ifndef X64CFG
+#ifndef Q_OS_WIN64
         nResult=read_uint32((qint64)nSP);
 #else
         nResult=read_uint64((qint64)nSP);

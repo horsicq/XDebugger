@@ -21,7 +21,7 @@
 #ifndef XDEBUGGER_H
 #define XDEBUGGER_H
 
-#include <QApplication>
+#include <QCoreApplication>
 #include <QObject>
 #include <QMap>
 #include <QFileInfo>
@@ -37,6 +37,7 @@ public:
     struct OPTIONS
     {
         bool bShowWindow;
+        QString sArgument;
     };
 
     enum MESSAGE_TYPE
