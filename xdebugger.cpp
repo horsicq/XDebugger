@@ -213,6 +213,7 @@ quint64 XDebugger::getFunctionParameter(XDebugger::FUNCTION_INFO *pFunctionInfo,
     nResult=read_uint32(_nStackAddress);
 #else
     // TODO x64
+    qCritical("getFunctionParameter");
 #endif
 
     return nResult;
@@ -287,6 +288,7 @@ void XDebugger::skipFunction(HANDLE hThread, quint32 nNumberOfParameters, quint6
         setRegister(hThread,REG_NAME_EIP,nRET);
         setRegister(hThread,REG_NAME_EAX,(quint32)nResult);
 #else
+    qCritical("skipFunction");
     //        quint64 nRSP=getRegister_x86(UC_X86_REG_RSP);
     //        quint64 nRET=read_uint64(nRSP);
     //        int _nNumbersOfArgs=qMax(nNumberOfArgs-4,0);
@@ -408,7 +410,18 @@ quint64 XDebugger::getRegister(HANDLE hThread, XDebugger::REG_NAME regName)
             case REG_NAME_EIP:  nResult=context.Eip;    break;
         }
 #else
-        // TODO
+        switch(regName)
+        {
+            case REG_NAME_RAX:  nResult=context.Rax;    break;
+            case REG_NAME_RBX:  nResult=context.Rbx;    break;
+            case REG_NAME_RCX:  nResult=context.Rbx;    break;
+            case REG_NAME_RDX:  nResult=context.Rdx;    break;
+            case REG_NAME_RSI:  nResult=context.Rsi;    break;
+            case REG_NAME_RDI:  nResult=context.Rdi;    break;
+            case REG_NAME_RBP:  nResult=context.Rbp;    break;
+            case REG_NAME_RSP:  nResult=context.Rsp;    break;
+            case REG_NAME_RIP:  nResult=context.Rip;    break;
+        }
 #endif
     }
 
@@ -438,7 +451,18 @@ bool XDebugger::setRegister(HANDLE hThread, XDebugger::REG_NAME regName, quint64
             case REG_NAME_EIP:  context.Eip=(quint32)nValue;    break;
         }
 #else
-        // TODO
+        switch(regName)
+        {
+            case REG_NAME_RAX:  context.Rax=(quint32)nValue;    break;
+            case REG_NAME_RBX:  context.Rbx=(quint32)nValue;    break;
+            case REG_NAME_RCX:  context.Rbx=(quint32)nValue;    break;
+            case REG_NAME_RDX:  context.Rdx=(quint32)nValue;    break;
+            case REG_NAME_RSI:  context.Rsi=(quint32)nValue;    break;
+            case REG_NAME_RDI:  context.Rdi=(quint32)nValue;    break;
+            case REG_NAME_RBP:  context.Rbp=(quint32)nValue;    break;
+            case REG_NAME_RSP:  context.Rsp=(quint32)nValue;    break;
+            case REG_NAME_RIP:  context.Rip=(quint32)nValue;    break;
+        }
 #endif
         if(SetThreadContext(hThread,&context))
         {
@@ -894,7 +918,12 @@ void XDebugger::_messageString(XDebugger::MESSAGE_TYPE type, QString sText)
 qint64 XDebugger::_getRetAddress(HANDLE hThread)
 {
     qint64 nResult=-1;
-    quint64 nSP=getRegister(hThread,REG_NAME_ESP);
+
+#ifndef Q_OS_WIN64
+        quint64 nSP=getRegister(hThread,REG_NAME_ESP);
+#else
+        quint64 nSP=getRegister(hThread,REG_NAME_RSP);
+#endif
 
     if(nSP!=(quint64)-1)
     {

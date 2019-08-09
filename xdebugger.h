@@ -228,7 +228,18 @@ protected:
         REG_NAME_EDI,
         REG_NAME_EBP,
         REG_NAME_ESP,
-        REG_NAME_EIP
+        REG_NAME_EIP,
+#ifdef Q_OS_WIN64
+        REG_NAME_RAX,
+        REG_NAME_RBX,
+        REG_NAME_RCX,
+        REG_NAME_RDX,
+        REG_NAME_RSI,
+        REG_NAME_RDI,
+        REG_NAME_RBP,
+        REG_NAME_RSP,
+        REG_NAME_RIP
+#endif
     };
 
     quint64 getRegister(HANDLE hThread,REG_NAME regName);
