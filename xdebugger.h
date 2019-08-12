@@ -78,6 +78,7 @@ public:
     quint32 read_uint32(qint64 nAddress);
     quint64 read_uint64(qint64 nAddress);
     void write_uint32(qint64 nAddress,quint32 nValue);
+    void write_uint64(qint64 nAddress,quint64 nValue);
 
     qint64 findSignature(qint64 nAddress, qint64 nSize, QString sSignature);
     void skipFunction(HANDLE hThread, quint32 nNumberOfParameters,quint64 nResult);
@@ -238,7 +239,15 @@ protected:
         REG_NAME_RDI,
         REG_NAME_RBP,
         REG_NAME_RSP,
-        REG_NAME_RIP
+        REG_NAME_RIP,
+        REG_NAME_R8,
+        REG_NAME_R9,
+        REG_NAME_R10,
+        REG_NAME_R11,
+        REG_NAME_R12,
+        REG_NAME_R13,
+        REG_NAME_R14,
+        REG_NAME_R15,
 #endif
     };
 

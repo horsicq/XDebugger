@@ -180,9 +180,15 @@ bool XUnpacker::dumpToFile(QString sFileName, XUnpacker::DUMP_OPTIONS *pDumpOpti
 
         RELOC_BUILD_RECORD record=i.value();
 
+#ifndef Q_OS_WIN64
         quint32 nValue=read_uint32(record.nPatchAddress);
         nValue-=nDelta;
         write_uint32(record.nPatchAddress,nValue);
+#else
+        quint64 nValue=read_uint64(record.nPatchAddress);
+        nValue-=nDelta;
+        write_uint64(record.nPatchAddress,nValue);
+#endif
     }
 
     QByteArray baHeader=read_array(getTargetInfo()->nImageBase,0x200);

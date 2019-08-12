@@ -46,9 +46,15 @@ public:
         PARAMS_KERNEL32_EXITPROCESS=1,
     };
 
-    static KERNEL32_GETPROCADDRESS handle_Kernel32_GetProcAddress(XDebugger *pDebugger,XDebugger::FUNCTION_INFO *pFunctionInfo);
-    static USER32_MESSAGEBOX handle_User32_MessageBox(XDebugger *pDebugger,XDebugger::FUNCTION_INFO *pFunctionInfo,bool bIsUnicode);
-    static KERNEL32_EXITPROCESS handle_Kernel32_ExitProcess(XDebugger *pDebugger,XDebugger::FUNCTION_INFO *pFunctionInfo);
+    enum HANDLE_TYPE
+    {
+        HANDLE_TYPE_ENTER=0,
+        HANDLE_TYPE_LEAVE
+    };
+
+    static void handle_Kernel32_GetProcAddress(XDebugger *pDebugger,XDebugger::FUNCTION_INFO *pFunctionInfo,HANDLE_TYPE handleType,KERNEL32_GETPROCADDRESS *pData);
+    static void handle_User32_MessageBox(XDebugger *pDebugger,XDebugger::FUNCTION_INFO *pFunctionInfo,HANDLE_TYPE handleType,bool bIsUnicode,USER32_MESSAGEBOX *pData);
+    static void handle_Kernel32_ExitProcess(XDebugger *pDebugger,XDebugger::FUNCTION_INFO *pFunctionInfo,HANDLE_TYPE handleType,KERNEL32_EXITPROCESS *pData);
 };
 
 #endif // XWINAPI_H

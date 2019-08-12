@@ -5,60 +5,82 @@ XWinAPI::XWinAPI(QObject *parent) : XDebugger(parent)
 
 }
 
-XWinAPI::KERNEL32_GETPROCADDRESS XWinAPI::handle_Kernel32_GetProcAddress(XDebugger *pDebugger, XDebugger::FUNCTION_INFO *pFunctionInfo)
+void XWinAPI::handle_Kernel32_GetProcAddress(XDebugger *pDebugger, XDebugger::FUNCTION_INFO *pFunctionInfo,HANDLE_TYPE handleType,KERNEL32_GETPROCADDRESS *pData)
 {
-    KERNEL32_GETPROCADDRESS result={};
-
-    result.nResult=pDebugger->getFunctionResult(pFunctionInfo);
-    result._hModule=pDebugger->getFunctionParameter(pFunctionInfo,0);
-    result._lpProcName=pDebugger->getFunctionParameter(pFunctionInfo,1);
-
-    result.sLibrary=pDebugger->getMapDLL()->value(result._hModule).sName;
-
-    if(result._lpProcName&0x80000000) // TODO 64
+    if(handleType==HANDLE_TYPE_ENTER)
     {
-        result.nOrdinal=result._lpProcName&0x7FFFFFFF;
-    }
-    else
-    {
-        result.sFunction=pDebugger->read_ansiString(result._lpProcName);
-    }
+        *pData={};
 
-    return result;
+        pData->_hModule=pDebugger->getFunctionParameter(pFunctionInfo,0);
+        pData->_lpProcName=pDebugger->getFunctionParameter(pFunctionInfo,1);
+
+        pData->sLibrary=pDebugger->getMapDLL()->value(pData->_hModule).sName;
+
+    #ifndef Q_OS_WIN64
+        if(pData->_lpProcName&0x80000000)
+        {
+            pData->bIsOrdinal=true;
+            pData->nOrdinal=pData->_lpProcName&0x7FFFFFFF;
+        }
+    #else
+        if(pData->_lpProcName&0x8000000000000000)
+        {
+            pData->bIsOrdinal=true;
+            pData->nOrdinal=pData->_lpProcName&0x7FFFFFFFFFFFFFFF;
+        }
+    #endif
+        else
+        {
+            pData->bIsOrdinal=false;
+            pData->sFunction=pDebugger->read_ansiString(pData->_lpProcName);
+        }
+    }
+    else if(handleType==HANDLE_TYPE_LEAVE)
+    {
+        pData->nResult=pDebugger->getFunctionResult(pFunctionInfo);
+    }
 }
 
-XWinAPI::USER32_MESSAGEBOX XWinAPI::handle_User32_MessageBox(XDebugger *pDebugger, XDebugger::FUNCTION_INFO *pFunctionInfo, bool bIsUnicode)
+void XWinAPI::handle_User32_MessageBox(XDebugger *pDebugger, XDebugger::FUNCTION_INFO *pFunctionInfo,HANDLE_TYPE handleType,bool bIsUnicode,USER32_MESSAGEBOX *pData)
 {
-    USER32_MESSAGEBOX result={};
-
-    result.nResult=pDebugger->getFunctionResult(pFunctionInfo);
-    result._hWnd=pDebugger->getFunctionParameter(pFunctionInfo,0);
-    result._lpText=pDebugger->getFunctionParameter(pFunctionInfo,1);
-    result._lpCaption=pDebugger->getFunctionParameter(pFunctionInfo,2);
-    result._uType=pDebugger->getFunctionParameter(pFunctionInfo,3);
-
-    result.bIsUnicode=bIsUnicode;
-
-    if(bIsUnicode)
+    if(handleType==HANDLE_TYPE_ENTER)
     {
-        result.sText=pDebugger->read_unicodeString(result._lpText);
-        result.sCaption=pDebugger->read_unicodeString(result._lpCaption);
-    }
-    else
-    {
-        result.sText=pDebugger->read_ansiString(result._lpText);
-        result.sCaption=pDebugger->read_ansiString(result._lpCaption);
-    }
+        *pData={};
 
-    return result;
+        pData->_hWnd=pDebugger->getFunctionParameter(pFunctionInfo,0);
+        pData->_lpText=pDebugger->getFunctionParameter(pFunctionInfo,1);
+        pData->_lpCaption=pDebugger->getFunctionParameter(pFunctionInfo,2);
+        pData->_uType=pDebugger->getFunctionParameter(pFunctionInfo,3);
+
+        pData->bIsUnicode=bIsUnicode;
+
+        if(bIsUnicode)
+        {
+            pData->sText=pDebugger->read_unicodeString(pData->_lpText);
+            pData->sCaption=pDebugger->read_unicodeString(pData->_lpCaption);
+        }
+        else
+        {
+            pData->sText=pDebugger->read_ansiString(pData->_lpText);
+            pData->sCaption=pDebugger->read_ansiString(pData->_lpCaption);
+        }
+    }
+    else if(handleType==HANDLE_TYPE_LEAVE)
+    {
+        pData->nResult=pDebugger->getFunctionResult(pFunctionInfo);
+    }
 }
 
-XWinAPI::KERNEL32_EXITPROCESS XWinAPI::handle_Kernel32_ExitProcess(XDebugger *pDebugger, XDebugger::FUNCTION_INFO *pFunctionInfo)
+void XWinAPI::handle_Kernel32_ExitProcess(XDebugger *pDebugger, XDebugger::FUNCTION_INFO *pFunctionInfo,HANDLE_TYPE handleType,KERNEL32_EXITPROCESS *pData)
 {
-    KERNEL32_EXITPROCESS result={};
+    if(handleType==HANDLE_TYPE_ENTER)
+    {
+        *pData={};
 
-    result.nResult=pDebugger->getFunctionResult(pFunctionInfo);
-    result._uExitCode=pDebugger->getFunctionParameter(pFunctionInfo,0);
-
-    return result;
+        pData->_uExitCode=pDebugger->getFunctionParameter(pFunctionInfo,0);
+    }
+    else if(handleType==HANDLE_TYPE_LEAVE)
+    {
+        pData->nResult=pDebugger->getFunctionResult(pFunctionInfo);
+    }
 }

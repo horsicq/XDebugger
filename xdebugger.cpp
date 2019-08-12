@@ -201,7 +201,11 @@ bool XDebugger::_addAPIHook(XDebugger::DLL_INFO dllInfo, QString sFunctionName)
 
 quint64 XDebugger::getFunctionResult(XDebugger::FUNCTION_INFO *pFunctionInfo)
 {
+#ifndef Q_OS_WIN64
     return getRegister(pFunctionInfo->hThread,REG_NAME_EAX);
+#else
+    return getRegister(pFunctionInfo->hThread,REG_NAME_RAX);
+#endif
 }
 
 quint64 XDebugger::getFunctionParameter(XDebugger::FUNCTION_INFO *pFunctionInfo, qint32 nNumber)
@@ -212,8 +216,29 @@ quint64 XDebugger::getFunctionParameter(XDebugger::FUNCTION_INFO *pFunctionInfo,
     qint64 _nStackAddress=pFunctionInfo->nStackFrame+4+4*nNumber;
     nResult=read_uint32(_nStackAddress);
 #else
-    // TODO x64
-    qCritical("getFunctionParameter");
+    // The Microsoft x64 calling convention
+    if(nNumber==0)
+    {
+        nResult=getRegister(pFunctionInfo->hThread,REG_NAME_RCX);
+    }
+    else if(nNumber==1)
+    {
+        nResult=getRegister(pFunctionInfo->hThread,REG_NAME_RDX);
+    }
+    else if(nNumber==2)
+    {
+        nResult=getRegister(pFunctionInfo->hThread,REG_NAME_R8);
+    }
+    else if(nNumber==3)
+    {
+        nResult=getRegister(pFunctionInfo->hThread,REG_NAME_R9);
+    }
+    else
+    {
+        // TODO Check
+        qint64 _nStackAddress=pFunctionInfo->nStackFrame+8+8*(nNumber-4);
+        nResult=read_uint64(_nStackAddress);
+    }
 #endif
 
     return nResult;
@@ -259,6 +284,11 @@ void XDebugger::write_uint32(qint64 nAddress, quint32 nValue)
     XProcess::write_uint32(getProcessHandle(),nAddress,nValue);
 }
 
+void XDebugger::write_uint64(qint64 nAddress, quint64 nValue)
+{
+    XProcess::write_uint64(getProcessHandle(),nAddress,nValue);
+}
+
 qint64 XDebugger::findSignature(qint64 nAddress, qint64 nSize, QString sSignature)
 {
     qint64 nResult=-1;
@@ -288,7 +318,7 @@ void XDebugger::skipFunction(HANDLE hThread, quint32 nNumberOfParameters, quint6
         setRegister(hThread,REG_NAME_EIP,nRET);
         setRegister(hThread,REG_NAME_EAX,(quint32)nResult);
 #else
-    qCritical("skipFunction");
+    qFatal("skipFunction");
     //        quint64 nRSP=getRegister_x86(UC_X86_REG_RSP);
     //        quint64 nRET=read_uint64(nRSP);
     //        int _nNumbersOfArgs=qMax(nNumberOfArgs-4,0);
@@ -401,26 +431,36 @@ quint64 XDebugger::getRegister(HANDLE hThread, XDebugger::REG_NAME regName)
         {
             case REG_NAME_EAX:  nResult=context.Eax;    break;
             case REG_NAME_EBX:  nResult=context.Ebx;    break;
-            case REG_NAME_ECX:  nResult=context.Ebx;    break;
+            case REG_NAME_ECX:  nResult=context.Ecx;    break;
             case REG_NAME_EDX:  nResult=context.Edx;    break;
             case REG_NAME_ESI:  nResult=context.Esi;    break;
             case REG_NAME_EDI:  nResult=context.Edi;    break;
             case REG_NAME_EBP:  nResult=context.Ebp;    break;
             case REG_NAME_ESP:  nResult=context.Esp;    break;
             case REG_NAME_EIP:  nResult=context.Eip;    break;
+            default:            qFatal("Unknown register");
         }
 #else
         switch(regName)
         {
             case REG_NAME_RAX:  nResult=context.Rax;    break;
             case REG_NAME_RBX:  nResult=context.Rbx;    break;
-            case REG_NAME_RCX:  nResult=context.Rbx;    break;
+            case REG_NAME_RCX:  nResult=context.Rcx;    break;
             case REG_NAME_RDX:  nResult=context.Rdx;    break;
             case REG_NAME_RSI:  nResult=context.Rsi;    break;
             case REG_NAME_RDI:  nResult=context.Rdi;    break;
             case REG_NAME_RBP:  nResult=context.Rbp;    break;
             case REG_NAME_RSP:  nResult=context.Rsp;    break;
             case REG_NAME_RIP:  nResult=context.Rip;    break;
+            case REG_NAME_R8:   nResult=context.R8;     break;
+            case REG_NAME_R9:   nResult=context.R9;     break;
+            case REG_NAME_R10:  nResult=context.R10;    break;
+            case REG_NAME_R11:  nResult=context.R11;    break;
+            case REG_NAME_R12:  nResult=context.R12;    break;
+            case REG_NAME_R13:  nResult=context.R13;    break;
+            case REG_NAME_R14:  nResult=context.R14;    break;
+            case REG_NAME_R15:  nResult=context.R15;    break;
+            default:            qFatal("Unknown register");
         }
 #endif
     }
@@ -449,19 +489,29 @@ bool XDebugger::setRegister(HANDLE hThread, XDebugger::REG_NAME regName, quint64
             case REG_NAME_EBP:  context.Ebp=(quint32)nValue;    break;
             case REG_NAME_ESP:  context.Esp=(quint32)nValue;    break;
             case REG_NAME_EIP:  context.Eip=(quint32)nValue;    break;
+            default:            qFatal("Unknown register");
         }
 #else
         switch(regName)
         {
-            case REG_NAME_RAX:  context.Rax=(quint32)nValue;    break;
-            case REG_NAME_RBX:  context.Rbx=(quint32)nValue;    break;
-            case REG_NAME_RCX:  context.Rbx=(quint32)nValue;    break;
-            case REG_NAME_RDX:  context.Rdx=(quint32)nValue;    break;
-            case REG_NAME_RSI:  context.Rsi=(quint32)nValue;    break;
-            case REG_NAME_RDI:  context.Rdi=(quint32)nValue;    break;
-            case REG_NAME_RBP:  context.Rbp=(quint32)nValue;    break;
-            case REG_NAME_RSP:  context.Rsp=(quint32)nValue;    break;
-            case REG_NAME_RIP:  context.Rip=(quint32)nValue;    break;
+            case REG_NAME_RAX:  context.Rax=(quint64)nValue;    break;
+            case REG_NAME_RBX:  context.Rbx=(quint64)nValue;    break;
+            case REG_NAME_RCX:  context.Rbx=(quint64)nValue;    break;
+            case REG_NAME_RDX:  context.Rdx=(quint64)nValue;    break;
+            case REG_NAME_RSI:  context.Rsi=(quint64)nValue;    break;
+            case REG_NAME_RDI:  context.Rdi=(quint64)nValue;    break;
+            case REG_NAME_RBP:  context.Rbp=(quint64)nValue;    break;
+            case REG_NAME_RSP:  context.Rsp=(quint64)nValue;    break;
+            case REG_NAME_RIP:  context.Rip=(quint64)nValue;    break;
+            case REG_NAME_R8:   context.R8=(quint64)nValue;     break;
+            case REG_NAME_R9:   context.R9=(quint64)nValue;    break;
+            case REG_NAME_R10:  context.R10=(quint64)nValue;    break;
+            case REG_NAME_R11:  context.R11=(quint64)nValue;    break;
+            case REG_NAME_R12:  context.R12=(quint64)nValue;    break;
+            case REG_NAME_R13:  context.R13=(quint64)nValue;    break;
+            case REG_NAME_R14:  context.R14=(quint64)nValue;    break;
+            case REG_NAME_R15:  context.R15=(quint64)nValue;    break;
+            default:            qFatal("Unknown register");
         }
 #endif
         if(SetThreadContext(hThread,&context))
@@ -790,7 +840,11 @@ bool XDebugger::_loadFile(QString sFileName, XDebugger::LOAD_TYPE loadType, XDeb
                                     functionInfo.nAddress=bp.nAddress;
                                     functionInfo.nRetAddress=_getRetAddress(hThread);
                                     functionInfo.sName=bp.vInfo.toString();
+#ifndef Q_OS_WIN64
                                     functionInfo.nStackFrame=(qint64)getRegister(functionInfo.hThread,REG_NAME_ESP);
+#else
+                                    functionInfo.nStackFrame=(qint64)getRegister(functionInfo.hThread,REG_NAME_RSP);
+#endif
 
                                     onFunctionEnter(&functionInfo);
 
