@@ -28,6 +28,8 @@ bool XUnpacker::dumpToFile(QString sFileName, XUnpacker::DUMP_OPTIONS *pDumpOpti
         // TODO handle errors
         XProcess::MEMORY_FLAGS mf=XProcess::getMemoryFlags(getProcessHandle(),nCurrentAddress);
 
+//        qint64 nTemp=nCurrentAddress-nImageBase;
+
         bool bCreateNewSection=false;
         bool bLastSection=false;
 
@@ -77,7 +79,7 @@ bool XUnpacker::dumpToFile(QString sFileName, XUnpacker::DUMP_OPTIONS *pDumpOpti
             mr.nSize+=N_BUFFER_SIZE;
         }
 
-        if(bCreateNewSection||bLastSection)
+        if(bCreateNewSection)
         {
             if(mr.nAddress)
             {
@@ -88,6 +90,14 @@ bool XUnpacker::dumpToFile(QString sFileName, XUnpacker::DUMP_OPTIONS *pDumpOpti
                 mr.nAddress=nCurrentAddress;
                 mr.nSize=0x1000;
                 mr.mf=mf;
+            }
+        }
+
+        if(bLastSection)
+        {
+            if(mr.nAddress)
+            {
+                listMR.append(mr);
             }
         }
     }

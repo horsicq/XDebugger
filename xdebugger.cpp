@@ -318,13 +318,13 @@ void XDebugger::skipFunction(HANDLE hThread, quint32 nNumberOfParameters, quint6
         setRegister(hThread,REG_NAME_EIP,nRET);
         setRegister(hThread,REG_NAME_EAX,(quint32)nResult);
 #else
-    qFatal("skipFunction");
-    //        quint64 nRSP=getRegister_x86(UC_X86_REG_RSP);
-    //        quint64 nRET=read_uint64(nRSP);
-    //        int _nNumbersOfArgs=qMax(nNumberOfArgs-4,0);
-    //        nRSP+=8+8*_nNumbersOfArgs;
-    //        setRegister_x86(UC_X86_REG_RSP,nRSP);
-    //        setRegister_x86(UC_X86_REG_RIP,nRET);
+        quint64 nRSP=getRegister(hThread,REG_NAME_RSP);
+        quint64 nRET=read_uint64(nRSP);
+        int _nNumbersOfArgs=qMax((qint32)nNumberOfParameters-4,0);
+        nRSP+=8+8*_nNumbersOfArgs;
+        setRegister(hThread,REG_NAME_RSP,nRSP);
+        setRegister(hThread,REG_NAME_RIP,nRET);
+        setRegister(hThread,REG_NAME_RAX,(quint64)nResult);
 #endif
 }
 
@@ -628,7 +628,11 @@ bool XDebugger::_loadFile(QString sFileName, XDebugger::LOAD_TYPE loadType, XDeb
     }
     else if(loadType==LOAD_TYPE_DLL)
     {
-        _sFileName=qApp->applicationDirPath()+QDir::separator()+"LibraryLoader32.exe"; // TODO 64
+#ifndef Q_OS_WIN64
+        _sFileName=qApp->applicationDirPath()+QDir::separator()+"LibraryLoader32.exe";
+#else
+        _sFileName=qApp->applicationDirPath()+QDir::separator()+"LibraryLoader64.exe";
+#endif
         _sArgument=QString("\"%1\" \"%2\"").arg(_sFileName).arg(sFileName);
         sTargetMD5=XBinary::getMD5(sFileName);
 //        _sArgument=sFileName;
