@@ -269,6 +269,16 @@ QString XDebugger::read_unicodeString(qint64 nAddress, qint64 nMaxSize)
     return XProcess::read_unicodeString(getProcessHandle(),nAddress,nMaxSize);
 }
 
+quint8 XDebugger::read_uint8(qint64 nAddress)
+{
+    return XProcess::read_uint8(getProcessHandle(),nAddress);
+}
+
+quint16 XDebugger::read_uint16(qint64 nAddress)
+{
+    return XProcess::read_uint16(getProcessHandle(),nAddress);
+}
+
 quint32 XDebugger::read_uint32(qint64 nAddress)
 {
     return XProcess::read_uint32(getProcessHandle(),nAddress);
@@ -277,6 +287,16 @@ quint32 XDebugger::read_uint32(qint64 nAddress)
 quint64 XDebugger::read_uint64(qint64 nAddress)
 {
     return XProcess::read_uint64(getProcessHandle(),nAddress);
+}
+
+void XDebugger::write_uint8(qint64 nAddress, quint8 nValue)
+{
+    XProcess::write_uint8(getProcessHandle(),nAddress,nValue);
+}
+
+void XDebugger::write_uint16(qint64 nAddress, quint16 nValue)
+{
+    XProcess::write_uint16(getProcessHandle(),nAddress,nValue);
 }
 
 void XDebugger::write_uint32(qint64 nAddress, quint32 nValue)
@@ -960,6 +980,7 @@ void XDebugger::_getFileInfo(QString sFileName)
             fileInfo.nResourceSize=pe.getOptionalHeader_DataDirectory(XPE_DEF::S_IMAGE_DIRECTORY_ENTRY_RESOURCE).Size;
             fileInfo.bIsTLSPresent=pe.isTLSPresent();
             fileInfo.nAddressOfEntryPoint=pe.getOptionalHeader_AddressOfEntryPoint();
+            fileInfo.bIs64=pe.is64();
 
             onFileLoad(&pe); // TODO move
         }

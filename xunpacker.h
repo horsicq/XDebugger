@@ -28,6 +28,29 @@ public:
     struct DUMP_OPTIONS
     {
         qint64 nAddressOfEntryPoint;
+        bool bFixChecksum;
+        bool bPatchNWError6002;
+    };
+
+    enum UNPACK_OPTIONS_ID
+    {
+        UNPACK_OPTIONS_ID_UNKNOWN=0,
+        UNPACK_OPTIONS_ID_FIXCHECKSUM,
+        UNPACK_OPTIONS_ID_PATCHNW
+    };
+
+    enum UNPACK_OPTIONS_VAR_TYPE
+    {
+        UNPACK_OPTIONS_VAR_TYPE_UNKNOWN=-1,
+        UNPACK_OPTIONS_VAR_TYPE_BOOL
+    };
+
+    struct UNPACK_OPTIONS_RECORD
+    {
+        quint32 nID;
+        QString sName;
+        UNPACK_OPTIONS_VAR_TYPE varType;
+        QVariant var;
     };
 
     explicit XUnpacker(QObject *parent=nullptr);
@@ -36,8 +59,12 @@ public:
     QMap<qint64,QString> getImportMap();
     QList<qint64> getRelocsList();
 
-    void setResultFileName(QString sResultFileName);
     QString getResultFileName();
+
+    bool unpack(QString sFileName,QString sResultFileName,QList<UNPACK_OPTIONS_RECORD> *pListUnpackOptions);
+
+    virtual QList<UNPACK_OPTIONS_RECORD> getDefaultUnpackOptions();
+    QVariant getUnpackOptionValue(quint32 nID);
 
 protected:
     virtual void _clear();
@@ -49,6 +76,7 @@ private:
     QMap<qint64,RELOC_BUILD_RECORD> mapRelocBuildRecords;
 
     QString sResultFileName;
+    QList<UNPACK_OPTIONS_RECORD> listUnpackOptions;
 };
 
 #endif // XUNPACKER_H

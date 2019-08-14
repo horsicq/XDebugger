@@ -12,6 +12,27 @@ bool XUnpacker::dumpToFile(QString sFileName, XUnpacker::DUMP_OPTIONS *pDumpOpti
     qint64 nImageBase=getTargetInfo()->nImageBase;
     qint64 nImageSize=getTargetInfo()->nImageSize;
 
+    if(pDumpOptions->bPatchNWError6002)
+    {
+        if(!(getFileInfo()->bIs64))
+        {
+            //   004947D5  |.  8B40 24                      MOV EAX,DWORD PTR DS:[EAX+24]
+            //   004947D8  |.  C1E8 1F                      SHR EAX,1F
+            //   004947DB  |.  F7D0                         NOT EAX
+            //   004947DD  |.  83E0 01                      AND EAX,00000001
+            qint64 nNWAddress=findSignature(nImageBase,nImageSize,"8B4024C1E81FF7D083E001");
+
+            if(nNWAddress!=-1)
+            {
+                 _messageString(MESSAGE_TYPE_WARNING,tr("NW Address found: 0x%1").arg(nNWAddress,0,16));
+
+                // 83 c8
+                // AND ->OR
+                write_uint8(nNWAddress+9,0xC8);
+            }
+        }
+    }
+
     const int N_BUFFER_SIZE=0x1000;
 
     char buffer[N_BUFFER_SIZE];
@@ -137,50 +158,6 @@ bool XUnpacker::dumpToFile(QString sFileName, XUnpacker::DUMP_OPTIONS *pDumpOpti
 
     XBinary::removeFile(sFileName);
 
-    XPE::HEADER_OPTIONS headerOptions={};
-
-//    XProcessDevice xpd(this);
-
-//    if(xpd.openHandle(getProcessHandle(),getCreateProcessInfo()->nImageBase,getCreateProcessInfo()->nImageSize,QIODevice::ReadOnly))
-//    {
-//        XPE pe(&xpd,true,getCreateProcessInfo()->nImageBase);
-
-//        if(pe.isValid())
-//        {
-//            headerOptions.nMachine=pe.getFileHeader_Machine();
-//            headerOptions.nCharacteristics=pe.getFileHeader_Characteristics();
-//            headerOptions.nMagic=pe.getOptionalHeader_Magic();
-//            headerOptions.nImagebase=pe.getOptionalHeader_ImageBase();
-//            headerOptions.nDllcharacteristics=pe.getOptionalHeader_DllCharacteristics();
-//            headerOptions.nMajorOperationSystemVersion=pe.getOptionalHeader_MajorOperatingSystemVersion();
-//            headerOptions.nMinorOperationSystemVersion=pe.getOptionalHeader_MinorOperatingSystemVersion();
-//            headerOptions.nSubsystem=pe.getOptionalHeader_Subsystem();
-//            headerOptions.nResourceRVA=pe.getOptionalHeader_DataDirectory(XPE_DEF::S_IMAGE_DIRECTORY_ENTRY_RESOURCE).VirtualAddress;
-//            headerOptions.nResourceSize=pe.getOptionalHeader_DataDirectory(XPE_DEF::S_IMAGE_DIRECTORY_ENTRY_RESOURCE).Size;
-//        }
-
-//        xpd.close();
-//    }
-
-    headerOptions.nMachine=getFileInfo()->nMachine;
-    headerOptions.nCharacteristics=getFileInfo()->nCharacteristics;
-    headerOptions.nMagic=getFileInfo()->nMagic;
-    headerOptions.nImagebase=getFileInfo()->nImageBase;
-    headerOptions.nDllcharacteristics=getFileInfo()->nDllcharacteristics;
-    headerOptions.nMajorOperationSystemVersion=getFileInfo()->nMajorOperationSystemVersion;
-    headerOptions.nMinorOperationSystemVersion=getFileInfo()->nMinorOperationSystemVersion;
-    headerOptions.nSubsystem=getFileInfo()->nSubsystem;
-    headerOptions.nResourceRVA=getFileInfo()->nResourceRVA;
-    headerOptions.nResourceSize=getFileInfo()->nResourceSize;
-
-//    dumpMemoryRegionToFile("C:\\tmp_build\\header.dmp",getCreateProcessInfo()->nImageBase,0x1000);
-
-    headerOptions.nFileAlignment=0x200;
-    headerOptions.nSectionAlignment=0x1000;
-    headerOptions.nAddressOfEntryPoint=pDumpOptions->nAddressOfEntryPoint;
-
-//    QByteArray baHeader=XPE::createHeaderStub(&headerOptions);
-
     qint64 nDelta=getTargetInfo()->nImageBase-getFileInfo()->nImageBase;
 
     QMapIterator<qint64, RELOC_BUILD_RECORD> i(mapRelocBuildRecords);
@@ -206,6 +183,15 @@ bool XUnpacker::dumpToFile(QString sFileName, XUnpacker::DUMP_OPTIONS *pDumpOpti
     QBuffer buBuffer;
     buBuffer.setBuffer(&baHeader);
 
+//    QFile file;
+//    file.setFileName(sFileName);
+
+//    if(file.open(QIODevice::ReadWrite))
+//    {
+//        file.write(baHeader.data(),baHeader.size());
+
+//        XPE pe(&file);
+
     if(buBuffer.open(QIODevice::ReadWrite))
     {
         XPE pe(&buBuffer);
@@ -213,6 +199,9 @@ bool XUnpacker::dumpToFile(QString sFileName, XUnpacker::DUMP_OPTIONS *pDumpOpti
         pe.setOptionalHeader_AddressOfEntryPoint(pDumpOptions->nAddressOfEntryPoint);
 
         pe.setFileHeader_NumberOfSections(0);
+        pe.setOptionalHeader_FileAlignment(0x200);
+        pe.setOptionalHeader_SectionAlignment(0x1000);
+        pe.setOptionalHeader_SizeOfHeaders(0x200);
 
         for(int i=0;i<nCountMR;i++)
         {
@@ -222,7 +211,6 @@ bool XUnpacker::dumpToFile(QString sFileName, XUnpacker::DUMP_OPTIONS *pDumpOpti
 
             pe.addSection(&ish,baSection.data(),baSection.size());
         }
-
         // Fix relocs
         if(nDelta)
         {
@@ -248,8 +236,20 @@ bool XUnpacker::dumpToFile(QString sFileName, XUnpacker::DUMP_OPTIONS *pDumpOpti
             pe.addRelocsSection(&listRelocs);
         }
 
+        if(pDumpOptions->bFixChecksum)
+        {
+            pe.fixCheckSum();
+        }
+        else
+        {
+            pe.setOptionalHeader_CheckSum(0);
+        }
+
+        // TODO virtual function
+
         bResult=true;
 
+//        file.close();
         buBuffer.close();
     }
 
@@ -356,14 +356,66 @@ QList<qint64> XUnpacker::getRelocsList()
     return listResult;
 }
 
-void XUnpacker::setResultFileName(QString sResultFileName)
-{
-    this->sResultFileName=sResultFileName;
-}
-
 QString XUnpacker::getResultFileName()
 {
     return sResultFileName;
+}
+
+bool XUnpacker::unpack(QString sFileName, QString sResultFileName, QList<UNPACK_OPTIONS_RECORD> *pListUnpackOptions)
+{
+    this->sResultFileName=sResultFileName;
+    listUnpackOptions=*pListUnpackOptions;
+
+    XDebugger::OPTIONS options={};
+    options.bShowWindow=true;
+
+    return loadFile(sFileName,&options);
+}
+
+QList<XUnpacker::UNPACK_OPTIONS_RECORD> XUnpacker::getDefaultUnpackOptions()
+{
+    QList<XUnpacker::UNPACK_OPTIONS_RECORD> listResult;
+
+    {
+        UNPACK_OPTIONS_RECORD record={};
+
+        record.nID=UNPACK_OPTIONS_ID_FIXCHECKSUM;
+        record.sName=tr("Fix checksum");
+        record.varType=UNPACK_OPTIONS_VAR_TYPE_BOOL;
+        record.var=true;
+
+        listResult.append(record);
+    }
+    {
+        UNPACK_OPTIONS_RECORD record={};
+
+        record.nID=UNPACK_OPTIONS_ID_PATCHNW;
+        record.sName=tr("Patch NW Address(fix Error 6002)");
+        record.varType=UNPACK_OPTIONS_VAR_TYPE_BOOL;
+        record.var=true;
+
+        listResult.append(record);
+    }
+
+    return listResult;
+}
+
+QVariant XUnpacker::getUnpackOptionValue(quint32 nID)
+{
+    QVariant varResult=0;
+
+    int nCount=listUnpackOptions.count();
+
+    for(int i=0;i<nCount;i++)
+    {
+        if(listUnpackOptions.at(i).nID==nID)
+        {
+            varResult=listUnpackOptions.at(i).var;
+            break;
+        }
+    }
+
+    return varResult;
 }
 
 void XUnpacker::_clear()

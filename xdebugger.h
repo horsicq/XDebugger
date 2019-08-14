@@ -75,8 +75,12 @@ public:
     QByteArray read_array(qint64 nAddress,qint32 nSize);
     QString read_ansiString(qint64 nAddress,qint64 nMaxSize=256);
     QString read_unicodeString(qint64 nAddress,qint64 nMaxSize=256);
+    quint8 read_uint8(qint64 nAddress);
+    quint16 read_uint16(qint64 nAddress);
     quint32 read_uint32(qint64 nAddress);
     quint64 read_uint64(qint64 nAddress);
+    void write_uint8(qint64 nAddress,quint8 nValue);
+    void write_uint16(qint64 nAddress,quint16 nValue);
     void write_uint32(qint64 nAddress,quint32 nValue);
     void write_uint64(qint64 nAddress,quint64 nValue);
 
@@ -117,6 +121,7 @@ protected:
         quint32 nResourceSize;
         bool bIsTLSPresent;
         quint32 nAddressOfEntryPoint;
+        bool bIs64;
     };
 
     struct TARGET_INFO

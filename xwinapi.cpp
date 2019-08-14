@@ -17,22 +17,23 @@ void XWinAPI::handle_Kernel32_GetProcAddress(XDebugger *pDebugger, XDebugger::FU
         pData->sLibrary=pDebugger->getMapDLL()->value(pData->_hModule).sName;
 
     #ifndef Q_OS_WIN64
-        if(pData->_lpProcName&0x80000000)
+        if(pData->_lpProcName&0xFFFF0000)
         {
-            pData->bIsOrdinal=true;
-            pData->nOrdinal=pData->_lpProcName&0x7FFFFFFF;
+
+            pData->bIsOrdinal=false;
+            pData->sFunction=pDebugger->read_ansiString(pData->_lpProcName);
         }
     #else
-        if(pData->_lpProcName&0x8000000000000000)
+        if(pData->_lpProcName&0xFFFFFFFFFFFF0000)
         {
-            pData->bIsOrdinal=true;
-            pData->nOrdinal=pData->_lpProcName&0x7FFFFFFFFFFFFFFF;
+            pData->bIsOrdinal=false;
+            pData->sFunction=pDebugger->read_ansiString(pData->_lpProcName);
         }
     #endif
         else
         {
-            pData->bIsOrdinal=false;
-            pData->sFunction=pDebugger->read_ansiString(pData->_lpProcName);
+            pData->bIsOrdinal=true;
+            pData->nOrdinal=pData->_lpProcName;
         }
     }
     else if(handleType==HANDLE_TYPE_LEAVE)
