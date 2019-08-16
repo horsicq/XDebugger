@@ -44,6 +44,10 @@ bool XUnpacker::dumpToFile(QString sFileName, XUnpacker::DUMP_OPTIONS *pDumpOpti
 
     // The first block is a header
     // TODO directories!!!
+
+    qint64 nResourcesStart=S_ALIGN_DOWN(getFileInfo()->nResourceRVA,0x1000)+nImageBase;
+    qint64 nResourcesEnd=S_ALIGN_UP(getFileInfo()->nResourceRVA+getFileInfo()->nResourceSize,0x1000)+nImageBase;
+
     for(qint64 nCurrentAddress=nImageBase+0x1000;nCurrentAddress<nImageBase+nImageSize;nCurrentAddress+=N_BUFFER_SIZE)
     {
         // TODO handle errors
@@ -60,6 +64,14 @@ bool XUnpacker::dumpToFile(QString sFileName, XUnpacker::DUMP_OPTIONS *pDumpOpti
         {
             bCreateNewSection=true;
         }
+
+        if( (nCurrentAddress==nResourcesStart)||
+            (nCurrentAddress==nResourcesEnd))
+        {
+            bCreateNewSection=true;
+        }
+
+        bool bResources=(nCurrentAddress>=nResourcesStart)&&(nCurrentAddress<nResourcesEnd);
 
         if(nCurrentAddress+N_BUFFER_SIZE>=nImageBase+nImageSize)
         {
@@ -89,13 +101,16 @@ bool XUnpacker::dumpToFile(QString sFileName, XUnpacker::DUMP_OPTIONS *pDumpOpti
         {
             if((!_bData)&&(bData))
             {
-                bCreateNewSection=true;
+                if(!bResources)
+                {
+                    bCreateNewSection=true;
+                }
             }
         }
 
         _bData=bData;
 
-        if((bData)&&(!bCreateNewSection))
+        if(((bData)&&(!bCreateNewSection))||(bResources))
         {
             mr.nSize+=N_BUFFER_SIZE;
         }
@@ -133,6 +148,11 @@ bool XUnpacker::dumpToFile(QString sFileName, XUnpacker::DUMP_OPTIONS *pDumpOpti
         XPE_DEF::IMAGE_SECTION_HEADER record={};
 
         record.VirtualAddress=listMR.at(i).nAddress-nImageBase;
+
+        if(listMR.at(i).nAddress==nResourcesStart)
+        {
+            strcpy((char *)record.Name,".rsrc");
+        }
 
         if(i==(nCountMR-1))
         {

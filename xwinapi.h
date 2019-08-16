@@ -7,6 +7,7 @@
 class XWinAPI : public XDebugger
 {
     Q_OBJECT
+
 public:
     explicit XWinAPI(QObject *parent=nullptr);
 

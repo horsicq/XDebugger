@@ -33,6 +33,7 @@
 class XDebugger : public QObject
 {
     Q_OBJECT
+
 public:
     struct OPTIONS
     {

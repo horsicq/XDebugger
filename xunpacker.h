@@ -9,6 +9,7 @@
 class XUnpacker : public XDebugger
 {
     Q_OBJECT
+
 public:
     struct IMPORT_BUILD_RECORD
     {
