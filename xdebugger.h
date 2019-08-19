@@ -93,6 +93,7 @@ public:
 
     bool dumpMemoryRegionToFile(QString sFilename,qint64 nAddress,qint64 nSize);
     bool isAddressInImage(qint64 nAddress);
+    bool isAddressInStack(qint64 nAddress);
 
 private:
     bool _setIP(HANDLE hThread,qint64 nAddress);
@@ -141,6 +142,8 @@ protected:
         qint64 nImageBase;
         qint64 nStartAddress;
         qint64 nThreadLocalBase;
+        qint64 nStackAddress;
+        qint64 nStackSize;
     };
     struct STATS
     {

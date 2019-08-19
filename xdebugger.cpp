@@ -391,6 +391,18 @@ bool XDebugger::isAddressInImage(qint64 nAddress)
     return bResult;
 }
 
+bool XDebugger::isAddressInStack(qint64 nAddress)
+{
+    bool bResult=false;
+
+    if((createProcessInfo.nStackAddress<=nAddress)&&(nAddress<createProcessInfo.nStackAddress+createProcessInfo.nStackSize))
+    {
+        bResult=true;
+    }
+
+    return bResult;
+}
+
 QString XDebugger::getFunctionNameByAddress(qint64 nAddress)
 {
     QString sResult;
@@ -690,13 +702,21 @@ bool XDebugger::_loadFile(QString sFileName, XDebugger::LOAD_TYPE loadType, XDeb
                         createProcessInfo.sFileName=XProcess::getFileNameByHandle(DBGEvent.u.CreateProcessInfo.hFile);
                         createProcessInfo.nThreadLocalBase=(qint64)DBGEvent.u.CreateProcessInfo.lpThreadLocalBase;
 
+                #ifndef Q_OS_WIN64
+                        quint32 nSP=getRegister(createProcessInfo.hThread,REG_NAME_ESP);
+                #else
+                        quint64 nSP=getRegister(createProcessInfo.hThread,REG_NAME_RSP);
+                #endif
+                        createProcessInfo.nStackAddress=XProcess::getRegionAllocationBase(getProcessHandle(),nSP);
+                        createProcessInfo.nStackSize=XProcess::getRegionAllocationSize(getProcessHandle(),createProcessInfo.nStackAddress);
+
                         if(loadType==LOAD_TYPE_EXE)
                         {
                             _getFileInfo(createProcessInfo.sFileName);
 
                             targetInfo.sFileName=createProcessInfo.sFileName;
                             targetInfo.nImageBase=createProcessInfo.nImageBase;
-                            targetInfo.nImageSize=XProcess::getImageSize(getProcessHandle(),createProcessInfo.nImageBase);
+                            targetInfo.nImageSize=XProcess::getRegionAllocationSize(getProcessHandle(),createProcessInfo.nImageBase);
                             targetInfo.nStartAddress=createProcessInfo.nStartAddress;
                         }
 
@@ -744,7 +764,7 @@ bool XDebugger::_loadFile(QString sFileName, XDebugger::LOAD_TYPE loadType, XDeb
                     {
                         DLL_INFO dllInfo= {};
                         dllInfo.nImageBase=(qint64)DBGEvent.u.LoadDll.lpBaseOfDll;
-                        dllInfo.nImageSize=XProcess::getImageSize(getProcessHandle(),dllInfo.nImageBase);
+                        dllInfo.nImageSize=XProcess::getRegionAllocationSize(getProcessHandle(),dllInfo.nImageBase);
                         dllInfo.sFileName=XProcess::getFileNameByHandle(DBGEvent.u.LoadDll.hFile);
                         dllInfo.sName=QFileInfo(dllInfo.sFileName).fileName();
 
@@ -771,7 +791,7 @@ bool XDebugger::_loadFile(QString sFileName, XDebugger::LOAD_TYPE loadType, XDeb
 
                                 targetInfo.sFileName=dllInfo.sFileName;
                                 targetInfo.nImageBase=dllInfo.nImageBase;
-                                targetInfo.nImageSize=XProcess::getImageSize(getProcessHandle(),dllInfo.nImageBase);
+                                targetInfo.nImageSize=XProcess::getRegionAllocationSize(getProcessHandle(),dllInfo.nImageBase);
                                 targetInfo.nStartAddress=fileInfo.nAddressOfEntryPoint+targetInfo.nImageBase;
 
                                 setBP(targetInfo.nStartAddress,BP_TYPE_CC,BP_INFO_TARGETDLL_ENTRYPOINT,1);
@@ -896,6 +916,11 @@ bool XDebugger::_loadFile(QString sFileName, XDebugger::LOAD_TYPE loadType, XDeb
                                 }
 
                                 nStatus=DBG_CONTINUE;
+                            }
+                            else
+                            {
+                                // TODO SEH
+
                             }
                         }
                         else if(nExceptionCode==EXCEPTION_SINGLE_STEP)
