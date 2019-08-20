@@ -59,6 +59,7 @@ public:
         qint64 nImageBase;
         qint64 nImageSize;
     };
+
     struct FUNCTION_INFO
     {
         qint64 nAddress;
@@ -67,6 +68,13 @@ public:
         HANDLE hThread;
         qint64 nStackFrame;
     };
+
+    struct SEH_INFO
+    {
+        qint64 nAddress;
+        HANDLE hThread;
+    };
+
     HANDLE getProcessHandle();
     QMap<qint64,DLL_INFO> *getMapDLL();
     quint64 getFunctionResult(FUNCTION_INFO *pFunctionInfo);
@@ -157,24 +165,29 @@ protected:
         qint64 nThreadLocalBase;
         qint64 nStartAddress;
     };
+
     struct EXITPROCESS_INFO
     {
         qint32 nExitCode;
     };
+
     struct EXITTHREAD_INFO
     {
         qint32 nExitCode;
     };
+
     struct ENTRYPOINT_INFO
     {
         qint64 nAddress;
         HANDLE hThread;
     };
+
     enum BP_TYPE
     {
         BP_TYPE_UNKNOWN=0,
         BP_TYPE_CC
     };
+
     enum BP_INFO
     {
         BP_INFO_UNKNOWN=0,
@@ -182,8 +195,10 @@ protected:
         BP_INFO_TARGETDLL_ENTRYPOINT,
         BP_INFO_API_ENTER,
         BP_INFO_API_LEAVE,
+        BP_INFO_SEH,
         BP_INFO_USER
     };
+
     struct BREAKPOINT
     {
         qint64 nAddress;
@@ -195,11 +210,19 @@ protected:
         qint32 nOrigDataSize;
         QVariant vInfo;
     };
-    struct STEP
+
+    struct STEP_INFO
     {
         qint64 nAddress;
         HANDLE hThread;
         QVariant vInfo;
+    };
+
+    struct EXCEPTION_INFO
+    {
+        qint64 nAddress;
+        qint64 nExceptionAddress;
+        qint32 nExceptionCode;
     };
 
     virtual void _clear();
@@ -217,7 +240,9 @@ protected:
     virtual void onBreakPoint(BREAKPOINT *pBp)                                      {Q_UNUSED(pBp)}
     virtual void onFunctionEnter(FUNCTION_INFO *pFunctionInfo)                      {Q_UNUSED(pFunctionInfo)}
     virtual void onFunctionLeave(FUNCTION_INFO *pFunctionInfo)                      {Q_UNUSED(pFunctionInfo)}
-    virtual void onStep(STEP *pStep)                                                {Q_UNUSED(pStep)}
+    virtual void onSEH(SEH_INFO *pSEHInfo)                                          {Q_UNUSED(pSEHInfo)}
+    virtual void onStep(STEP_INFO *pStepInfo)                                       {Q_UNUSED(pStepInfo)}
+    virtual void onException(EXCEPTION_INFO *pExceptionInfo)                        {Q_UNUSED(pExceptionInfo)}
     // TODO onException
 
     bool setBP(qint64 nAddress,BP_TYPE bpType=BP_TYPE_CC,BP_INFO bpInfo=BP_INFO_UNKNOWN,qint32 nCount=-1,QVariant vInfo=QVariant());
@@ -265,6 +290,7 @@ protected:
     TARGET_INFO *getTargetInfo();
     FILE_INFO *getFileInfo();
     qint64 _getRetAddress(HANDLE hThread);
+    qint64 _getCurrentAddress(HANDLE hThread);
     void _messageString(MESSAGE_TYPE type,QString sText);
 
 signals:

@@ -905,6 +905,15 @@ bool XDebugger::_loadFile(QString sFileName, XDebugger::LOAD_TYPE loadType, XDeb
                                     onFunctionLeave(&functionInfo);
                                     mapAPI.remove(nID);
                                 }
+                                else if(bp.bpInfo==BP_INFO_SEH)
+                                {
+                                    SEH_INFO sehInfo={};
+
+                                    sehInfo.nAddress=_getCurrentAddress(hThread);
+                                    sehInfo.hThread=hThread;
+
+                                    onSEH(&sehInfo);
+                                }
                                 else
                                 {
                                     onBreakPoint(&bp);
@@ -919,7 +928,6 @@ bool XDebugger::_loadFile(QString sFileName, XDebugger::LOAD_TYPE loadType, XDeb
                             }
                             else
                             {
-                                // TODO SEH
 
                             }
                         }
@@ -934,16 +942,16 @@ bool XDebugger::_loadFile(QString sFileName, XDebugger::LOAD_TYPE loadType, XDeb
 
                             if(stats.bStepInto)
                             {
-                                STEP step={};
+                                STEP_INFO stepInfo={};
 
-                                step.nAddress=nExceptionAddress;
-                                step.hThread=hThread;
-                                step.vInfo=stats.vStepIntoInfo;
+                                stepInfo.nAddress=nExceptionAddress;
+                                stepInfo.hThread=hThread;
+                                stepInfo.vInfo=stats.vStepIntoInfo;
 
                                 stats.bStepInto=false;
                                 stats.vStepIntoInfo.clear();
 
-                                onStep(&step);
+                                onStep(&stepInfo);
 
                                 nStatus=DBG_CONTINUE;
                             }
@@ -963,6 +971,31 @@ bool XDebugger::_loadFile(QString sFileName, XDebugger::LOAD_TYPE loadType, XDeb
                         else if(nExceptionCode==EXCEPTION_INT_DIVIDE_BY_ZERO)
                         {
 
+                        }
+
+                        if(nStatus!=DBG_CONTINUE)
+                        {
+                            if(bLoaded)
+                            {
+                                EXCEPTION_INFO exceptionInfo={};
+                                exceptionInfo.nAddress=_getCurrentAddress(hThread);
+                                exceptionInfo.nExceptionCode=edi.ExceptionRecord.ExceptionCode;
+                                exceptionInfo.nExceptionAddress=(qint64)edi.ExceptionRecord.ExceptionAddress;
+
+                                onException(&exceptionInfo);
+
+                                qint64 nTEBAddress=XProcess::getTEBAddress(hThread);
+
+                            #ifndef Q_OS_WIN64
+                                quint32 nSEHAddress=read_uint32(nTEBAddress);
+
+                                if(nSEHAddress!=-1)
+                                {
+                                    qint64 nCodeAddress=read_uint32(nSEHAddress+4);
+                                    setBP(nCodeAddress,BP_TYPE_CC,BP_INFO_SEH,1);
+                                }
+                            #endif
+                            }
                         }
                     }
                 }
@@ -1037,6 +1070,19 @@ qint64 XDebugger::_getRetAddress(HANDLE hThread)
         nResult=read_uint64((qint64)nSP);
 #endif
     }
+
+    return nResult;
+}
+
+qint64 XDebugger::_getCurrentAddress(HANDLE hThread)
+{
+    qint64 nResult=-1;
+
+#ifndef Q_OS_WIN64
+    nResult=getRegister(hThread,REG_NAME_EIP);
+#else
+    nResult=getRegister(hThread,REG_NAME_RIP);
+#endif
 
     return nResult;
 }
