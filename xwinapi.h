@@ -40,6 +40,15 @@ public:
         bool bIsUnicode;
     };
 
+    struct KERNEL32_VIRTUALALLOC
+    {
+        quint64 nResult;
+        quint64 _lpAddress;
+        quint64 _dwSize;
+        quint64 _flAllocationType;
+        quint64 _flProtect;
+    };
+
     enum PARAMS
     {
         PARAMS_KERNEL32_GETPROCADDRESS=2,
@@ -56,6 +65,7 @@ public:
     static void handle_Kernel32_GetProcAddress(XDebugger *pDebugger,XDebugger::FUNCTION_INFO *pFunctionInfo,HANDLE_TYPE handleType,KERNEL32_GETPROCADDRESS *pData);
     static void handle_User32_MessageBox(XDebugger *pDebugger,XDebugger::FUNCTION_INFO *pFunctionInfo,HANDLE_TYPE handleType,bool bIsUnicode,USER32_MESSAGEBOX *pData);
     static void handle_Kernel32_ExitProcess(XDebugger *pDebugger,XDebugger::FUNCTION_INFO *pFunctionInfo,HANDLE_TYPE handleType,KERNEL32_EXITPROCESS *pData);
+    static void handle_Kernel32_VirtualAlloc(XDebugger *pDebugger,XDebugger::FUNCTION_INFO *pFunctionInfo,HANDLE_TYPE handleType,KERNEL32_VIRTUALALLOC *pData);
 };
 
 #endif // XWINAPI_H

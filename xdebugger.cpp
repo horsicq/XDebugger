@@ -63,17 +63,20 @@ bool XDebugger::setBP(qint64 nAddress, XDebugger::BP_TYPE bpType, XDebugger::BP_
     bp.bpType=bpType;
     bp.vInfo=vInfo;
 
-    if(bpType==BP_TYPE_CC)
+    if(!mapBP.contains(nAddress))
     {
-        bp.nOrigDataSize=1;
-
-        if(readData(nAddress,bp.origData,bp.nOrigDataSize))
+        if(bpType==BP_TYPE_CC)
         {
-            if(writeData(nAddress,(char *)"\xCC",bp.nOrigDataSize)) // TODO Check
-            {
-                mapBP.insert(nAddress,bp);
+            bp.nOrigDataSize=1;
 
-                bResult=true;
+            if(readData(nAddress,bp.origData,bp.nOrigDataSize))
+            {
+                if(writeData(nAddress,(char *)"\xCC",bp.nOrigDataSize)) // TODO Check
+                {
+                    mapBP.insert(nAddress,bp);
+
+                    bResult=true;
+                }
             }
         }
     }
@@ -105,6 +108,8 @@ bool XDebugger::removeBP(qint64 nAddress)
 
 bool XDebugger::addAPIHook(QString sFunctionName)
 {
+    bool bResult=false;
+
     if(sFunctionName!="")
     {
         QMapIterator<qint64,DLL_INFO> i(mapDLL);
@@ -115,16 +120,22 @@ bool XDebugger::addAPIHook(QString sFunctionName)
 
             DLL_INFO dllInfo=i.value();
 
-            _addAPIHook(dllInfo,sFunctionName);
+            if(_addAPIHook(dllInfo,sFunctionName))
+            {
+                bResult=true;
+            }
         }
 
-        if(!stAPIHooks.contains(sFunctionName))
+        if(bResult)
         {
-            stAPIHooks.insert(sFunctionName);
+            if(!stAPIHooks.contains(sFunctionName))
+            {
+                stAPIHooks.insert(sFunctionName);
+            }
         }
     }
 
-    return true;
+    return bResult;
 }
 
 bool XDebugger::removeAPIHook(QString sFunctionName)
@@ -164,6 +175,8 @@ bool XDebugger::removeAPIHook(QString sFunctionName)
 
 bool XDebugger::_addAPIHook(XDebugger::DLL_INFO dllInfo, QString sFunctionName)
 {
+    bool bResult=false;
+
     QString sLibrary=sFunctionName.section("#",0,0);
     QString sFunction=sFunctionName.section("#",1,1);
 
@@ -185,7 +198,7 @@ bool XDebugger::_addAPIHook(XDebugger::DLL_INFO dllInfo, QString sFunctionName)
                 {
                     if(exportHeader.listPositions.at(i).sFunctionName==sFunction)
                     {
-                        setBP(exportHeader.listPositions.at(i).nAddress,BP_TYPE_CC,BP_INFO_API_ENTER,-1,sFunctionName);
+                        bResult=setBP(exportHeader.listPositions.at(i).nAddress,BP_TYPE_CC,BP_INFO_API_ENTER,-1,sFunctionName);
 
                         break;
                     }
@@ -196,7 +209,12 @@ bool XDebugger::_addAPIHook(XDebugger::DLL_INFO dllInfo, QString sFunctionName)
         }
     }
 
-    return true;
+    return bResult;
+}
+
+bool XDebugger::isAPIHook(QString sFunctionName)
+{
+    return stAPIHooks.contains(sFunctionName);
 }
 
 quint64 XDebugger::getFunctionResult(XDebugger::FUNCTION_INFO *pFunctionInfo)
@@ -895,7 +913,11 @@ bool XDebugger::_loadFile(QString sFileName, XDebugger::LOAD_TYPE loadType, XDeb
                                     quint64 nID=XBinary::random64();
                                     mapAPI.insert(nID,functionInfo);
 
-                                    setBP(functionInfo.nRetAddress,BP_TYPE_CC,BP_INFO_API_LEAVE,1,nID);
+                                    if(!setBP(functionInfo.nRetAddress,BP_TYPE_CC,BP_INFO_API_LEAVE,1,nID))
+                                    {
+                                        qFatal("Cannot set BP_INFO_API_LEAVE");
+                                    }
+
                                 }
                                 else if(bp.bpInfo==BP_INFO_API_LEAVE)
                                 {

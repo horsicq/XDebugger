@@ -250,6 +250,7 @@ protected:
     bool addAPIHook(QString sFunctionName);
     bool removeAPIHook(QString sFunctionName);
     bool _addAPIHook(DLL_INFO dllInfo,QString sFunctionName);
+    bool isAPIHook(QString sFunctionName);
 
     QString getFunctionNameByAddress(qint64 nAddress);
 

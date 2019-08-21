@@ -85,3 +85,20 @@ void XWinAPI::handle_Kernel32_ExitProcess(XDebugger *pDebugger, XDebugger::FUNCT
         pData->nResult=pDebugger->getFunctionResult(pFunctionInfo);
     }
 }
+
+void XWinAPI::handle_Kernel32_VirtualAlloc(XDebugger *pDebugger, XDebugger::FUNCTION_INFO *pFunctionInfo, XWinAPI::HANDLE_TYPE handleType,KERNEL32_VIRTUALALLOC *pData)
+{
+    if(handleType==HANDLE_TYPE_ENTER)
+    {
+        *pData={};
+
+        pData->_lpAddress=pDebugger->getFunctionParameter(pFunctionInfo,0);
+        pData->_dwSize=pDebugger->getFunctionParameter(pFunctionInfo,1);
+        pData->_flAllocationType=pDebugger->getFunctionParameter(pFunctionInfo,2);
+        pData->_flProtect=pDebugger->getFunctionParameter(pFunctionInfo,3);
+    }
+    else if(handleType==HANDLE_TYPE_LEAVE)
+    {
+        pData->nResult=pDebugger->getFunctionResult(pFunctionInfo);
+    }
+}
