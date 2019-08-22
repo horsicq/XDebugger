@@ -56,24 +56,24 @@ bool XDebugger::setBP(qint64 nAddress, XDebugger::BP_TYPE bpType, XDebugger::BP_
 {
     bool bResult=false;
 
-    BREAKPOINT bp= {};
-    bp.nAddress=nAddress;
-    bp.nCount=nCount;
-    bp.bpInfo=bpInfo;
-    bp.bpType=bpType;
-    bp.vInfo=vInfo;
-
-    if(!mapBP.contains(nAddress))
+    if(bpType==BP_TYPE_CC)
     {
-        if(bpType==BP_TYPE_CC)
+        if(!mapBP_Instr.contains(nAddress))
         {
-            bp.nOrigDataSize=1;
+            BREAKPOINT_INSTR bpInstr={};
+            bpInstr.nAddress=nAddress;
+            bpInstr.nCount=nCount;
+            bpInstr.bpInfo=bpInfo;
+            bpInstr.bpType=bpType;
+            bpInstr.vInfo=vInfo;
 
-            if(readData(nAddress,bp.origData,bp.nOrigDataSize))
+            bpInstr.nOrigDataSize=1;
+
+            if(readData(nAddress,bpInstr.origData,bpInstr.nOrigDataSize))
             {
-                if(writeData(nAddress,(char *)"\xCC",bp.nOrigDataSize)) // TODO Check
+                if(writeData(nAddress,(char *)"\xCC",bpInstr.nOrigDataSize)) // TODO Check
                 {
-                    mapBP.insert(nAddress,bp);
+                    mapBP_Instr.insert(nAddress,bpInstr);
 
                     bResult=true;
                 }
@@ -88,15 +88,15 @@ bool XDebugger::removeBP(qint64 nAddress)
 {
     bool bResult=false;
 
-    if(mapBP.contains(nAddress))
+    if(mapBP_Instr.contains(nAddress))
     {
-        BREAKPOINT bp=mapBP.value(nAddress);
+        BREAKPOINT_INSTR bpInstr=mapBP_Instr.value(nAddress);
 
-        if(bp.bpType==BP_TYPE_CC)
+        if(bpInstr.bpType==BP_TYPE_CC)
         {
-            if(writeData(nAddress,bp.origData,bp.nOrigDataSize))
+            if(writeData(nAddress,bpInstr.origData,bpInstr.nOrigDataSize))
             {
-                mapBP.remove(nAddress);
+                mapBP_Instr.remove(nAddress);
 
                 bResult=true;
             }
@@ -142,7 +142,7 @@ bool XDebugger::removeAPIHook(QString sFunctionName)
 {
     if(sFunctionName!="")
     {
-        QMutableMapIterator<qint64,BREAKPOINT> i(mapBP);
+        QMutableMapIterator<qint64,BREAKPOINT_INSTR> i(mapBP_Instr);
 
         QList<qint64> listBP;
 
@@ -151,7 +151,7 @@ bool XDebugger::removeAPIHook(QString sFunctionName)
             i.next();
 
             qint64 nAddress=i.key();
-            BREAKPOINT bp=i.value();
+            BREAKPOINT_INSTR bp=i.value();
 
             if(bp.vInfo.toString()==sFunctionName)
             {
@@ -592,7 +592,7 @@ void XDebugger::_clear()
     targetInfo={};
     stats={};
     mapDLL.clear();
-    mapBP.clear();
+    mapBP_Instr.clear();
     mapThreads.clear();
 }
 
@@ -695,12 +695,11 @@ bool XDebugger::_loadFile(QString sFileName, XDebugger::LOAD_TYPE loadType, XDeb
 
         if(ResumeThread(processInfo.hThread)!=((DWORD)-1))
         {
-            BREAKPOINT bpRestore= {};
-            bool bRestoreBP=false;
-            QMap<quint64,FUNCTION_INFO> mapAPI;
+            BREAKPOINT_INSTR bpRestoreInstr={};
+            bool bRestoreBPInstr=false;
 
-            bool bLoaded=false;
-            bool bTargetDLLLoaded=false;
+            stats.bProcessEP=false;
+            stats.bTargetDLLLoaded=false;
 
             while(true)
             {
@@ -799,7 +798,7 @@ bool XDebugger::_loadFile(QString sFileName, XDebugger::LOAD_TYPE loadType, XDeb
 
                         onLoadDllDebugEvent(&dllInfo);
 
-                        if((bLoaded)&&(!bTargetDLLLoaded))
+                        if((stats.bProcessEP)&&(!stats.bTargetDLLLoaded))
                         {
                             QString _sTargetMD5=XBinary::getMD5(dllInfo.sFileName);
 
@@ -814,7 +813,7 @@ bool XDebugger::_loadFile(QString sFileName, XDebugger::LOAD_TYPE loadType, XDeb
 
                                 setBP(targetInfo.nStartAddress,BP_TYPE_CC,BP_INFO_TARGETDLL_ENTRYPOINT,1);
 
-                                bTargetDLLLoaded=true;
+                                stats.bTargetDLLLoaded=true;
                             }
                         }
                     }
@@ -846,102 +845,30 @@ bool XDebugger::_loadFile(QString sFileName, XDebugger::LOAD_TYPE loadType, XDeb
 
                         if(nExceptionCode==EXCEPTION_BREAKPOINT)
                         {
-                            if(mapBP.contains(nExceptionAddress))
+                            if(mapBP_Instr.contains(nExceptionAddress))
                             {
                                 // TODO multithreads
                                 // Stop all another threads mb as options?
-                                BREAKPOINT bp=mapBP.value(nExceptionAddress);
-                                bp.hThread=hThread;
+                                BREAKPOINT_INSTR bpCC=mapBP_Instr.value(nExceptionAddress);
 
-                                if(bp.nCount!=-1)
+                                if(bpCC.nCount!=-1)
                                 {
-                                    bp.nCount--;
+                                    bpCC.nCount--;
                                 }
 
-                                if(bp.nCount)
+                                if(bpCC.nCount)
                                 {
-                                    bpRestore=bp;
-                                    bRestoreBP=true;
+                                    bpRestoreInstr=bpCC;
+                                    bRestoreBPInstr=true;
                                 }
 
                                 _setIP(mapThreads.value(DBGEvent.dwThreadId),nExceptionAddress);
 
                                 removeBP(nExceptionAddress);
 
-                                if(bp.bpInfo==BP_INFO_PROCESS_ENTRYPOINT)
-                                {
-                                    bLoaded=true;
+                                _handleBP(loadType,bpCC.bpInfo,bpCC.nAddress,hThread,bpCC.bpType,bpCC.vInfo);
 
-                                    ENTRYPOINT_INFO entryPointInfo= {};
-
-                                    entryPointInfo.nAddress=nExceptionAddress;
-                                    entryPointInfo.hThread=hThread;
-
-                                    onProcessEntryPoint(&entryPointInfo);
-                                    if(loadType==LOAD_TYPE_EXE)
-                                    {
-                                        onTargetEntryPoint(&entryPointInfo);
-                                    }
-                                }
-                                else if(bp.bpInfo==BP_INFO_TARGETDLL_ENTRYPOINT)
-                                {
-                                    ENTRYPOINT_INFO entryPointInfo= {};
-
-                                    entryPointInfo.nAddress=nExceptionAddress;
-                                    entryPointInfo.hThread=hThread;
-
-                                    if(loadType==LOAD_TYPE_DLL)
-                                    {
-                                        onTargetEntryPoint(&entryPointInfo);
-                                    }
-                                }
-                                else if(bp.bpInfo==BP_INFO_API_ENTER)
-                                {
-                                    FUNCTION_INFO functionInfo= {};
-                                    functionInfo.hThread=hThread;
-                                    functionInfo.nAddress=bp.nAddress;
-                                    functionInfo.nRetAddress=_getRetAddress(hThread);
-                                    functionInfo.sName=bp.vInfo.toString();
-#ifndef Q_OS_WIN64
-                                    functionInfo.nStackFrame=(qint64)getRegister(functionInfo.hThread,REG_NAME_ESP);
-#else
-                                    functionInfo.nStackFrame=(qint64)getRegister(functionInfo.hThread,REG_NAME_RSP);
-#endif
-
-                                    onFunctionEnter(&functionInfo);
-
-                                    quint64 nID=XBinary::random64();
-                                    mapAPI.insert(nID,functionInfo);
-
-                                    if(!setBP(functionInfo.nRetAddress,BP_TYPE_CC,BP_INFO_API_LEAVE,1,nID))
-                                    {
-                                        qFatal("Cannot set BP_INFO_API_LEAVE");
-                                    }
-
-                                }
-                                else if(bp.bpInfo==BP_INFO_API_LEAVE)
-                                {
-                                    quint64 nID=bp.vInfo.toULongLong();
-                                    FUNCTION_INFO functionInfo=mapAPI.value(nID);
-
-                                    onFunctionLeave(&functionInfo);
-                                    mapAPI.remove(nID);
-                                }
-                                else if(bp.bpInfo==BP_INFO_SEH)
-                                {
-                                    SEH_INFO sehInfo={};
-
-                                    sehInfo.nAddress=_getCurrentAddress(hThread);
-                                    sehInfo.hThread=hThread;
-
-                                    onSEH(&sehInfo);
-                                }
-                                else
-                                {
-                                    onBreakPoint(&bp);
-                                }
-
-                                if(bRestoreBP)
+                                if(bRestoreBPInstr)
                                 {
                                     _setStep(mapThreads.value(DBGEvent.dwThreadId));
                                 }
@@ -955,10 +882,10 @@ bool XDebugger::_loadFile(QString sFileName, XDebugger::LOAD_TYPE loadType, XDeb
                         }
                         else if(nExceptionCode==EXCEPTION_SINGLE_STEP)
                         {
-                            if(bRestoreBP)
+                            if(bRestoreBPInstr)
                             {
-                                setBP(bpRestore.nAddress,bpRestore.bpType,bpRestore.bpInfo,bpRestore.nCount,bpRestore.vInfo);
-                                bRestoreBP=false;
+                                setBP(bpRestoreInstr.nAddress,bpRestoreInstr.bpType,bpRestoreInstr.bpInfo,bpRestoreInstr.nCount,bpRestoreInstr.vInfo);
+                                bRestoreBPInstr=false;
                                 nStatus=DBG_CONTINUE;
                             }
 
@@ -997,7 +924,7 @@ bool XDebugger::_loadFile(QString sFileName, XDebugger::LOAD_TYPE loadType, XDeb
 
                         if(nStatus!=DBG_CONTINUE)
                         {
-                            if(bLoaded)
+                            if(stats.bProcessEP)
                             {
                                 EXCEPTION_INFO exceptionInfo={};
                                 exceptionInfo.nAddress=_getCurrentAddress(hThread);
@@ -1067,6 +994,210 @@ void XDebugger::_getFileInfo(QString sFileName)
 
         file.close();
     }
+}
+
+void XDebugger::_handleBP(LOAD_TYPE loadType,BP_INFO bpInfo, qint64 nAddress, HANDLE hThread,BP_TYPE bpType,QVariant vInfo)
+{
+    if(bpInfo==BP_INFO_PROCESS_ENTRYPOINT)
+    {
+        stats.bProcessEP=true;
+
+        ENTRYPOINT_INFO entryPointInfo= {};
+
+        entryPointInfo.nAddress=nAddress;
+        entryPointInfo.hThread=hThread;
+
+        onProcessEntryPoint(&entryPointInfo);
+        if(loadType==LOAD_TYPE_EXE)
+        {
+            onTargetEntryPoint(&entryPointInfo);
+        }
+    }
+    else if(bpInfo==BP_INFO_TARGETDLL_ENTRYPOINT)
+    {
+        ENTRYPOINT_INFO entryPointInfo= {};
+
+        entryPointInfo.nAddress=nAddress;
+        entryPointInfo.hThread=hThread;
+
+        if(loadType==LOAD_TYPE_DLL)
+        {
+            onTargetEntryPoint(&entryPointInfo);
+        }
+    }
+    else if(bpInfo==BP_INFO_API_ENTER)
+    {
+        FUNCTION_INFO functionInfo= {};
+        functionInfo.hThread=hThread;
+        functionInfo.nAddress=nAddress;
+        functionInfo.nRetAddress=_getRetAddress(hThread);
+        functionInfo.sName=vInfo.toString();
+#ifndef Q_OS_WIN64
+        functionInfo.nStackFrame=(qint64)getRegister(functionInfo.hThread,REG_NAME_ESP);
+#else
+        functionInfo.nStackFrame=(qint64)getRegister(functionInfo.hThread,REG_NAME_RSP);
+#endif
+
+        onFunctionEnter(&functionInfo);
+
+        quint64 nID=XBinary::random64();
+        stats.mapAPI.insert(nID,functionInfo);
+
+        if(!setBP(functionInfo.nRetAddress,bpType,BP_INFO_API_LEAVE,1,nID))
+        {
+            qFatal("Cannot set BP_INFO_API_LEAVE");
+        }
+    }
+    else if(bpInfo==BP_INFO_API_LEAVE)
+    {
+        quint64 nID=vInfo.toULongLong();
+        FUNCTION_INFO functionInfo=stats.mapAPI.value(nID);
+
+        onFunctionLeave(&functionInfo);
+        stats.mapAPI.remove(nID);
+    }
+    else if(bpInfo==BP_INFO_SEH)
+    {
+        SEH_INFO sehInfo={};
+
+        sehInfo.nAddress=_getCurrentAddress(hThread);
+        sehInfo.hThread=hThread;
+
+        onSEH(&sehInfo);
+    }
+    else
+    {
+        BREAKPOINT_INFO breakPointInfo={};
+
+        breakPointInfo.nAddress=nAddress;
+        breakPointInfo.bpInfo=bpInfo;
+        breakPointInfo.bpType=bpType;
+        breakPointInfo.vInfo=vInfo;
+        breakPointInfo.hThread=hThread;
+
+        onBreakPoint(&breakPointInfo);
+    }
+}
+
+qint32 XDebugger::_setHWBPX(HANDLE hThread,qint64 nAddress, XDebugger::HWBP_ACCESS access, XDebugger::HWBP_SIZE size)
+{
+    qint64 nCurrentIndex=-1;
+
+    DBGREGS dr= {};
+
+    if(_getDbgRegs(hThread,&dr))
+    {
+        // Get Free index
+
+        for(int i=0; i<4; i++)
+        {
+            if(!(dr.nControl&(((quint64)1)<<(i*2))))
+            {
+                nCurrentIndex=i;
+                break;
+            }
+        }
+
+        if(nCurrentIndex!=-1)
+        {
+            dr.regs[nCurrentIndex]=nAddress;
+
+            quint64 _Ctrl=0;
+            quint64 _Size=0;
+
+            switch(access)
+            {
+                case HWBP_ACCESS_EXECUTE:
+                    _Ctrl=0;
+                    break;
+
+                case HWBP_ACCESS_READ:
+                    _Ctrl=1;
+                    break;
+
+                case HWBP_ACCESS_READWRITE:
+                    _Ctrl=3;
+                    break;
+            }
+
+            switch(size)
+            {
+                case HWBP_SIZE_BYTE:
+                    _Size=0;
+                    break;
+
+                case HWBP_SIZE_WORD:
+                    _Size=1;
+                    break;
+
+                case HWBP_SIZE_QWORD:
+                    _Size=2;
+                    break;
+
+                case HWBP_SIZE_DWORD:
+                    _Size=3;
+                    break;
+            }
+
+            dr.nControl|=(((quint64)1)<<(nCurrentIndex*2));
+            dr.nControl|=((_Ctrl+(_Size<<2))<<(16+nCurrentIndex*2));
+            dr.nControl&=0xFFFF03FF;
+            // if Bit 10 set on 64 clear DR2
+
+            dr.nStatus=0;
+
+            if(!_setDbgRegs(hThread,&dr))
+            {
+                nCurrentIndex=-1;
+            }
+        }
+    }
+
+    return nCurrentIndex;
+}
+
+bool XDebugger::_setDbgRegs(HANDLE hThread,XDebugger::DBGREGS *pDr)
+{
+    bool bResult=false;
+
+    CONTEXT context= {0};
+    context.ContextFlags=CONTEXT_ALL;
+
+    if(GetThreadContext(hThread,&context))
+    {
+        context.Dr0=pDr->regs[0];
+        context.Dr1=pDr->regs[1];
+        context.Dr2=pDr->regs[2];
+        context.Dr3=pDr->regs[3];
+        context.Dr6=pDr->nStatus;
+        context.Dr7=pDr->nControl;
+
+        bResult=SetThreadContext(hThread,&context);
+    }
+
+    return bResult;
+}
+
+bool XDebugger::_getDbgRegs(HANDLE hThread, XDebugger::DBGREGS *pDr)
+{
+    bool bResult=false;
+
+    CONTEXT context= {0};
+    context.ContextFlags=CONTEXT_ALL;
+
+    if(GetThreadContext(hThread,&context))
+    {
+        pDr->regs[0]=context.Dr0;
+        pDr->regs[1]=context.Dr1;
+        pDr->regs[2]=context.Dr2;
+        pDr->regs[3]=context.Dr3;
+        pDr->nStatus=context.Dr6;
+        pDr->nControl=context.Dr7;
+
+        bResult=true;
+    }
+
+    return bResult;
 }
 
 void XDebugger::_messageString(XDebugger::MESSAGE_TYPE type, QString sText)

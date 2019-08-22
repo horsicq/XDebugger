@@ -103,19 +103,6 @@ public:
     bool isAddressInImage(qint64 nAddress);
     bool isAddressInStack(qint64 nAddress);
 
-private:
-    bool _setIP(HANDLE hThread,qint64 nAddress);
-    bool _setStep(HANDLE hThread);
-
-    enum LOAD_TYPE
-    {
-        LOAD_TYPE_EXE,
-        LOAD_TYPE_DLL
-    };
-
-    bool _loadFile(QString sFileName,LOAD_TYPE loadType,OPTIONS *pOptions=nullptr);
-    void _getFileInfo(QString sFileName);
-
 protected:
     struct FILE_INFO
     {
@@ -155,8 +142,11 @@ protected:
     };
     struct STATS
     {
+        bool bProcessEP;
+        bool bTargetDLLLoaded;
         bool bStepInto;
         QVariant vStepIntoInfo;
+        QMap<quint64,FUNCTION_INFO> mapAPI;
     };
 
     struct CREATETHREAD_INFO
@@ -185,7 +175,8 @@ protected:
     enum BP_TYPE
     {
         BP_TYPE_UNKNOWN=0,
-        BP_TYPE_CC
+        BP_TYPE_CC,
+        BP_TYPE_HWEXE
     };
 
     enum BP_INFO
@@ -199,15 +190,23 @@ protected:
         BP_INFO_USER
     };
 
-    struct BREAKPOINT
+    struct BREAKPOINT_INSTR
     {
         qint64 nAddress;
-        HANDLE hThread;
         qint32 nCount;
         BP_TYPE bpType;
         BP_INFO bpInfo;
+        QVariant vInfo;
         char origData[4];
         qint32 nOrigDataSize;
+    };
+
+    struct BREAKPOINT_HW
+    {
+        qint64 nAddress;
+        qint32 nCount;
+        BP_TYPE bpType;
+        BP_INFO bpInfo;
         QVariant vInfo;
     };
 
@@ -225,6 +224,15 @@ protected:
         qint32 nExceptionCode;
     };
 
+    struct BREAKPOINT_INFO
+    {
+        qint64 nAddress;
+        HANDLE hThread;
+        BP_TYPE bpType;
+        BP_INFO bpInfo;
+        QVariant vInfo;
+    };
+
     virtual void _clear();
     virtual void onFileLoad(XPE *pPE)                                               {Q_UNUSED(pPE)}
     virtual void onCreateProcessDebugEvent(CREATEPROCESS_INFO *pCreateProcessInfo)  {Q_UNUSED(pCreateProcessInfo)}
@@ -237,7 +245,7 @@ protected:
     virtual void onRipEvent(DEBUG_EVENT *pDebugEvent)                               {Q_UNUSED(pDebugEvent)}
     virtual void onProcessEntryPoint(ENTRYPOINT_INFO *pEntryPointInfo)              {Q_UNUSED(pEntryPointInfo)}
     virtual void onTargetEntryPoint(ENTRYPOINT_INFO *pEntryPointInfo)               {Q_UNUSED(pEntryPointInfo)}
-    virtual void onBreakPoint(BREAKPOINT *pBp)                                      {Q_UNUSED(pBp)}
+    virtual void onBreakPoint(BREAKPOINT_INFO *pBreakPointInfo)                     {Q_UNUSED(pBreakPointInfo)}
     virtual void onFunctionEnter(FUNCTION_INFO *pFunctionInfo)                      {Q_UNUSED(pFunctionInfo)}
     virtual void onFunctionLeave(FUNCTION_INFO *pFunctionInfo)                      {Q_UNUSED(pFunctionInfo)}
     virtual void onSEH(SEH_INFO *pSEHInfo)                                          {Q_UNUSED(pSEHInfo)}
@@ -294,6 +302,45 @@ protected:
     qint64 _getCurrentAddress(HANDLE hThread);
     void _messageString(MESSAGE_TYPE type,QString sText);
 
+private:
+    bool _setIP(HANDLE hThread,qint64 nAddress);
+    bool _setStep(HANDLE hThread);
+
+    enum LOAD_TYPE
+    {
+        LOAD_TYPE_EXE,
+        LOAD_TYPE_DLL
+    };
+
+    enum HWBP_ACCESS
+    {
+        HWBP_ACCESS_EXECUTE=0,
+        HWBP_ACCESS_READ,
+        HWBP_ACCESS_READWRITE
+    };
+
+    enum HWBP_SIZE
+    {
+        HWBP_SIZE_BYTE=0,
+        HWBP_SIZE_WORD,
+        HWBP_SIZE_DWORD,
+        HWBP_SIZE_QWORD
+    };
+
+    struct DBGREGS
+    {
+        quint64 regs[4];
+        quint64 nControl;
+        quint64 nStatus;
+    };
+
+    bool _loadFile(QString sFileName,LOAD_TYPE loadType,OPTIONS *pOptions=nullptr);
+    void _getFileInfo(QString sFileName);
+    void _handleBP(LOAD_TYPE loadType, BP_INFO bpInfo, qint64 nAddress, HANDLE hThread, BP_TYPE bpType, QVariant vInfo);
+    qint32 _setHWBPX(HANDLE hThread,qint64 nAddress,HWBP_ACCESS access,HWBP_SIZE size);
+    bool _setDbgRegs(HANDLE hThread,DBGREGS *pDr);
+    bool _getDbgRegs(HANDLE hThread,DBGREGS *pDr);
+
 signals:
     void messageString(quint32 nType,QString sText);
 
@@ -305,7 +352,8 @@ private:
     TARGET_INFO targetInfo;
     STATS stats;
     QMap<qint64,DLL_INFO> mapDLL;
-    QMap<qint64,BREAKPOINT> mapBP;
+    QMap<qint64,BREAKPOINT_INSTR> mapBP_Instr;
+    QMap<qint64,BREAKPOINT_HW> mapBP_HW;
     QMap<quint32,HANDLE> mapThreads;
     QSet<QString> stAPIHooks;
 };

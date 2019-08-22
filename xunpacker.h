@@ -18,6 +18,7 @@ public:
         bool bIsOrdinal;
         quint64 nOrdinal;
         QString sFunction;
+        quint64 nValue;
     };
 
     struct RELOC_BUILD_RECORD

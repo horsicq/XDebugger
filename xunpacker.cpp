@@ -225,9 +225,14 @@ bool XUnpacker::dumpToFile(QString sFileName, XUnpacker::DUMP_OPTIONS *pDumpOpti
 
         for(int i=0;i<nCountMR;i++)
         {
+            XPE_DEF::IMAGE_SECTION_HEADER ish=listSH.at(i);
+
             QByteArray baSection=read_array(listMR.at(i).nAddress,listMR.at(i).nSize);
 
-            XPE_DEF::IMAGE_SECTION_HEADER ish=listSH.at(i);
+            qint64 _nSize=XBinary::getPhysSize(baSection.data(),baSection.size());
+
+            ish.SizeOfRawData=S_ALIGN_UP(_nSize,0x200);
+            baSection.resize(ish.SizeOfRawData);
 
             pe.addSection(&ish,baSection.data(),baSection.size());
         }
@@ -448,10 +453,16 @@ void XUnpacker::_clear()
 
 void XUnpacker::addImportBuildRecord(XUnpacker::IMPORT_BUILD_RECORD record)
 {
+    QString sDebugString=QString("Import [%1] <- %2 : %3 : %4").arg(record.nPatchAddress,0,16).arg(record.nValue,0,16).arg(record.sLibrary).arg(record.sFunction);
+    _messageString(MESSAGE_TYPE_INFO,sDebugString);
+
     mapImportBuildRecords.insert(record.nPatchAddress,record);
 }
 
 void XUnpacker::addRelocBuildRecord(XUnpacker::RELOC_BUILD_RECORD record)
 {
+    QString sDebugString=QString("Reloc [%1] <- %2").arg(record.nPatchAddress,0,16).arg(record.nValue,0,16);
+    _messageString(MESSAGE_TYPE_INFO,sDebugString);
+
     mapRelocBuildRecords.insert(record.nPatchAddress,record);
 }
