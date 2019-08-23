@@ -208,6 +208,8 @@ protected:
         BP_TYPE bpType;
         BP_INFO bpInfo;
         QVariant vInfo;
+        HANDLE hThread;
+        qint32 nIndex;
     };
 
     struct STEP_INFO
@@ -253,11 +255,11 @@ protected:
     virtual void onException(EXCEPTION_INFO *pExceptionInfo)                        {Q_UNUSED(pExceptionInfo)}
     // TODO onException
 
-    bool setBP(qint64 nAddress,BP_TYPE bpType=BP_TYPE_CC,BP_INFO bpInfo=BP_INFO_UNKNOWN,qint32 nCount=-1,QVariant vInfo=QVariant());
-    bool removeBP(qint64 nAddress);
-    bool addAPIHook(QString sFunctionName);
+    bool setBP(HANDLE hThread,qint64 nAddress,BP_TYPE bpType=BP_TYPE_CC,BP_INFO bpInfo=BP_INFO_UNKNOWN,qint32 nCount=-1,QVariant vInfo=QVariant());
+    bool removeBP(HANDLE hThread,qint64 nAddress,XDebugger::BP_TYPE bpType);
+    bool addAPIHook(HANDLE hThread, QString sFunctionName, BP_TYPE bpType=BP_TYPE_CC);
     bool removeAPIHook(QString sFunctionName);
-    bool _addAPIHook(DLL_INFO dllInfo,QString sFunctionName);
+    bool _addAPIHook(HANDLE hThread, DLL_INFO dllInfo, QString sFunctionName, BP_TYPE bpType);
     bool isAPIHook(QString sFunctionName);
 
     QString getFunctionNameByAddress(qint64 nAddress);
@@ -338,6 +340,7 @@ private:
     void _getFileInfo(QString sFileName);
     void _handleBP(LOAD_TYPE loadType, BP_INFO bpInfo, qint64 nAddress, HANDLE hThread, BP_TYPE bpType, QVariant vInfo);
     qint32 _setHWBPX(HANDLE hThread,qint64 nAddress,HWBP_ACCESS access,HWBP_SIZE size);
+    bool _removeHWBPX(HANDLE hThread,qint32 nIndex);
     bool _setDbgRegs(HANDLE hThread,DBGREGS *pDr);
     bool _getDbgRegs(HANDLE hThread,DBGREGS *pDr);
 
@@ -355,7 +358,7 @@ private:
     QMap<qint64,BREAKPOINT_INSTR> mapBP_Instr;
     QMap<qint64,BREAKPOINT_HW> mapBP_HW;
     QMap<quint32,HANDLE> mapThreads;
-    QSet<QString> stAPIHooks;
+    QMap<QString,BP_TYPE> mapAPIHooks;
 };
 
 #endif // XDEBUGGER_H
