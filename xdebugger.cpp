@@ -912,6 +912,8 @@ bool XDebugger::_loadFile(QString sFileName, XDebugger::LOAD_TYPE loadType, XDeb
                         qint64 nExceptionAddress=(qint64)edi.ExceptionRecord.ExceptionAddress;
                         quint32 nExceptionCode=(quint32)edi.ExceptionRecord.ExceptionCode;
                         HANDLE hThread=mapThreads.value(DBGEvent.dwThreadId);
+//                        bool bIsFirtsChance=(edi.dwFirstChance==1);
+                        // TODO Exceptions in TLS
 
                         nStatus=DBG_EXCEPTION_NOT_HANDLED;
 
