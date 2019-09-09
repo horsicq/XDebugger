@@ -768,6 +768,8 @@ bool XDebugger::_loadFile(QString sFileName, XDebugger::LOAD_TYPE loadType, XDeb
             stats.bProcessEP=false;
             stats.bTargetDLLLoaded=false;
 
+            DWORD dwMainThreadID=0;
+
             while(true)
             {
                 DEBUG_EVENT DBGEvent= {0};
@@ -808,6 +810,8 @@ bool XDebugger::_loadFile(QString sFileName, XDebugger::LOAD_TYPE loadType, XDeb
 
                         mapThreads.insert(XProcess::getThreadIDByHandle(createProcessInfo.hThread),DBGEvent.u.CreateProcessInfo.hThread);
 
+                        dwMainThreadID=DBGEvent.dwThreadId;
+
                         onCreateProcessDebugEvent(&createProcessInfo);
                     }
                     else if(DBGEvent.dwDebugEventCode==CREATE_THREAD_DEBUG_EVENT)
@@ -843,6 +847,8 @@ bool XDebugger::_loadFile(QString sFileName, XDebugger::LOAD_TYPE loadType, XDeb
                         mapThreads.remove(DBGEvent.dwThreadId);
 
                         onExitThreadDebugEvent(&exitThreadInfo);
+
+                        // Mb TODO exit main thread
                     }
                     else if(DBGEvent.dwDebugEventCode==LOAD_DLL_DEBUG_EVENT)
                     {
