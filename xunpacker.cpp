@@ -405,7 +405,8 @@ QList<XUnpacker::UNPACK_OPTIONS_RECORD> XUnpacker::getDefaultUnpackOptions()
         UNPACK_OPTIONS_RECORD record={};
 
         record.nID=UNPACK_OPTIONS_ID_FIXCHECKSUM;
-        record.sName=tr("Fix checksum");
+        record.sName="fixchecksum";
+        record.sDescription=tr("Fix checksum");
         record.varType=UNPACK_OPTIONS_VAR_TYPE_BOOL;
         record.var=true;
 
@@ -415,7 +416,8 @@ QList<XUnpacker::UNPACK_OPTIONS_RECORD> XUnpacker::getDefaultUnpackOptions()
         UNPACK_OPTIONS_RECORD record={};
 
         record.nID=UNPACK_OPTIONS_ID_PATCHNW;
-        record.sName=tr("Patch NW Address(fix Error 6002)");
+        record.sName="patchnw";
+        record.sDescription=tr("Patch NW Address(fix Error 6002)");
         record.varType=UNPACK_OPTIONS_VAR_TYPE_BOOL;
         record.var=true;
 

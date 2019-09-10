@@ -51,6 +51,7 @@ public:
     {
         quint32 nID;
         QString sName;
+        QString sDescription;
         UNPACK_OPTIONS_VAR_TYPE varType;
         QVariant var;
     };
