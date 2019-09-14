@@ -725,7 +725,7 @@ bool XDebugger::_loadFile(QString sFileName, XDebugger::LOAD_TYPE loadType, XDeb
     PROCESS_INFORMATION processInfo={};
     STARTUPINFOW sturtupInfo={};
 
-    // TODO 32/64
+    // TODO 32/64 !!! do not load if not the same(WOW64)
     sturtupInfo.cb=sizeof(sturtupInfo);
 
     BOOL _bCreateProcess=FALSE;
@@ -920,10 +920,12 @@ bool XDebugger::_loadFile(QString sFileName, XDebugger::LOAD_TYPE loadType, XDeb
                         HANDLE hThread=mapThreads.value(DBGEvent.dwThreadId);
 //                        bool bIsFirtsChance=(edi.dwFirstChance==1);
                         // TODO Exceptions in TLS
+//                        qDebug("Exception: %x",nExceptionAddress);
+//                        qDebug("ExceptionCode: %x",nExceptionCode);
 
                         nStatus=DBG_EXCEPTION_NOT_HANDLED;
 
-                        if(nExceptionCode==EXCEPTION_BREAKPOINT)
+                        if((nExceptionCode==EXCEPTION_BREAKPOINT)||(nExceptionCode==0x4000001f )) // 4000001f WOW64 breakpoint
                         {
                             if(mapBP_Instr.contains(nExceptionAddress))
                             {
@@ -960,7 +962,7 @@ bool XDebugger::_loadFile(QString sFileName, XDebugger::LOAD_TYPE loadType, XDeb
 
                             }
                         }
-                        else if(nExceptionCode==EXCEPTION_SINGLE_STEP)
+                        else if((nExceptionCode==EXCEPTION_SINGLE_STEP)||(nExceptionCode==0x4000001e)) // 4000001e WOW64 single step exception
                         {
                             if(bRestoreBPInstr)
                             {
@@ -1043,7 +1045,7 @@ bool XDebugger::_loadFile(QString sFileName, XDebugger::LOAD_TYPE loadType, XDeb
                         }
                         else if(nExceptionCode==EXCEPTION_ACCESS_VIOLATION)
                         {
-
+                            qDebug("EXCEPTION_ACCESS_VIOLATION");
                         }
                         else if(nExceptionCode==EXCEPTION_ILLEGAL_INSTRUCTION)
                         {
