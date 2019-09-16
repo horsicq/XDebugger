@@ -275,6 +275,7 @@ protected:
         REG_NAME_EBP,
         REG_NAME_ESP,
         REG_NAME_EIP,
+        REG_NAME_EFLAGS,
 #ifdef Q_OS_WIN64
         REG_NAME_RAX,
         REG_NAME_RBX,
@@ -285,6 +286,7 @@ protected:
         REG_NAME_RBP,
         REG_NAME_RSP,
         REG_NAME_RIP,
+        REG_NAME_RFLAGS,
         REG_NAME_R8,
         REG_NAME_R9,
         REG_NAME_R10,
@@ -303,6 +305,8 @@ protected:
     qint64 _getRetAddress(HANDLE hThread);
     qint64 _getCurrentAddress(HANDLE hThread);
     void _messageString(MESSAGE_TYPE type,QString sText);
+
+    QMap<REG_NAME,quint64> _getRegState(HANDLE hThread);
 
 private:
     bool _setIP(HANDLE hThread,qint64 nAddress);
