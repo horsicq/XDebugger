@@ -249,7 +249,7 @@ bool XUnpacker::dumpToFile(QString sFileName, XUnpacker::DUMP_OPTIONS *pDumpOpti
             pe.addImportSection(&mapImport);
         }
 
-        if(getTargetInfo()->nImageBase!=getFileInfo()->nImageBase)
+        if(getTargetInfo()->nImageBase!=(qint64)getFileInfo()->nImageBase)
         {
             _messageString(MESSAGE_TYPE_INFO,tr("Relocs present"));
         }

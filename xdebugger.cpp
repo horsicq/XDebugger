@@ -768,7 +768,7 @@ bool XDebugger::_loadFile(QString sFileName, XDebugger::LOAD_TYPE loadType, XDeb
             stats.bProcessEP=false;
             stats.bTargetDLLLoaded=false;
 
-            DWORD dwMainThreadID=0;
+//            DWORD dwMainThreadID=0;
 
             while(true)
             {
@@ -810,7 +810,7 @@ bool XDebugger::_loadFile(QString sFileName, XDebugger::LOAD_TYPE loadType, XDeb
 
                         mapThreads.insert(XProcess::getThreadIDByHandle(createProcessInfo.hThread),DBGEvent.u.CreateProcessInfo.hThread);
 
-                        dwMainThreadID=DBGEvent.dwThreadId;
+//                        dwMainThreadID=DBGEvent.dwThreadId;
 
                         onCreateProcessDebugEvent(&createProcessInfo);
                     }
@@ -1067,9 +1067,9 @@ bool XDebugger::_loadFile(QString sFileName, XDebugger::LOAD_TYPE loadType, XDeb
 
                                 onException(&exceptionInfo);
 
+                            #ifndef Q_OS_WIN64
                                 qint64 nTEBAddress=XProcess::getTEBAddress(hThread);
 
-                            #ifndef Q_OS_WIN64
                                 quint32 nSEHAddress=read_uint32(nTEBAddress);
 
                                 if(nSEHAddress!=-1)
@@ -1396,7 +1396,7 @@ QMap<XDebugger::REG_NAME, quint64> XDebugger::_getRegState(HANDLE hThread)
         mapResult.insert(REG_NAME_EAX,context.Rsp);
         mapResult.insert(REG_NAME_EAX,context.Rip);
         // TODO more regs
-        mapResult.insert(REG_NAME_EAX,context.RFlags);
+        mapResult.insert(REG_NAME_EAX,context.EFlags);
 #endif
     }
 
