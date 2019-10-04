@@ -889,7 +889,7 @@ bool XDebugger::_loadFile(QString sFileName, XDebugger::LOAD_TYPE loadType, XDeb
                                 targetInfo.nImageSize=XProcess::getRegionAllocationSize(getProcessHandle(),dllInfo.nImageBase);
                                 targetInfo.nStartAddress=fileInfo.nAddressOfEntryPoint+targetInfo.nImageBase;
 
-                                setBP(hThread,targetInfo.nStartAddress,BP_TYPE_CC,BP_INFO_TARGETDLL_ENTRYPOINT,1);
+                                setBP(hThread,targetInfo.nStartAddress,BP_TYPE_HWEXE,BP_INFO_TARGETDLL_ENTRYPOINT,1);
 
                                 stats.bTargetDLLLoaded=true;
                             }
