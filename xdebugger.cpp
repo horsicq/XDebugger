@@ -444,6 +444,40 @@ void XDebugger::stop()
     TerminateProcess(getProcessHandle(),0);
 }
 
+void XDebugger::pause()
+{
+    QList<HANDLE> listThreads=mapThreads.values();
+
+    int nCount=listThreads.count();
+
+    for(int i=0;i<nCount;i++)
+    {
+        suspendThread(listThreads.at(i));
+    }
+}
+
+void XDebugger::resume()
+{
+    QList<HANDLE> listThreads=mapThreads.values();
+
+    int nCount=listThreads.count();
+
+    for(int i=0;i<nCount;i++)
+    {
+        resumeThread(listThreads.at(i));
+    }
+}
+
+void XDebugger::suspendThread(HANDLE hThread)
+{
+    SuspendThread(hThread);
+}
+
+void XDebugger::resumeThread(HANDLE hThread)
+{
+    ResumeThread(hThread);
+}
+
 bool XDebugger::dumpMemoryRegionToFile(QString sFilename, qint64 nAddress, qint64 nSize)
 {
     bool bResult=false;
@@ -661,6 +695,21 @@ void XDebugger::_clear()
     mapThreads.clear();
 }
 
+void XDebugger::onFileLoad(XBinary *pBinary)
+{
+    emit _onFileLoad(pBinary);
+}
+
+void XDebugger::onCreateThreadDebugEvent(XDebugger::CREATETHREAD_INFO *pCreateThreadInfo)
+{
+    emit _onCreateThreadDebugEvent(pCreateThreadInfo);
+}
+
+void XDebugger::onTargetEntryPoint(XDebugger::ENTRYPOINT_INFO *pEntryPointInfo)
+{
+    emit _onTargetEntryPoint(pEntryPointInfo);
+}
+
 bool XDebugger::_setIP(HANDLE hThread, qint64 nAddress)
 {
     bool bResult=false;
@@ -749,7 +798,7 @@ bool XDebugger::_loadFile(QString sFileName, XDebugger::LOAD_TYPE loadType, XDeb
         _sFileName=qApp->applicationDirPath()+QDir::separator()+"LibraryLoader64.exe";
 #endif
         _sArgument=QString("\"%1\" \"%2\"").arg(_sFileName).arg(sFileName);
-        sTargetMD5=XBinary::getMD5(sFileName);
+        sTargetMD5=XBinary::getHash(XBinary::HASH_MD5,sFileName);
 //        _sArgument=sFileName;
         _bCreateProcess=CreateProcessW((const wchar_t*)_sFileName.utf16(),(wchar_t*)_sArgument.utf16(),nullptr,nullptr,0,nFlags,nullptr,nullptr,&sturtupInfo,&processInfo);
     }
@@ -878,7 +927,7 @@ bool XDebugger::_loadFile(QString sFileName, XDebugger::LOAD_TYPE loadType, XDeb
 
                         if((stats.bProcessEP)&&(!stats.bTargetDLLLoaded))
                         {
-                            QString _sTargetMD5=XBinary::getMD5(dllInfo.sFileName);
+                            QString _sTargetMD5=XBinary::getHash(XBinary::HASH_MD5,dllInfo.sFileName);
 
                             if(_sTargetMD5==sTargetMD5)
                             {
@@ -1145,6 +1194,11 @@ void XDebugger::_handleBP(LOAD_TYPE loadType,BP_INFO bpInfo, qint64 nAddress, HA
         if(loadType==LOAD_TYPE_EXE)
         {
             onTargetEntryPoint(&entryPointInfo);
+
+            if(options.bPauseOnTargetEntryPoint)
+            {
+                pause();
+            }
         }
     }
     else if(bpInfo==BP_INFO_TARGETDLL_ENTRYPOINT)
@@ -1157,6 +1211,11 @@ void XDebugger::_handleBP(LOAD_TYPE loadType,BP_INFO bpInfo, qint64 nAddress, HA
         if(loadType==LOAD_TYPE_DLL)
         {
             onTargetEntryPoint(&entryPointInfo);
+
+            if(options.bPauseOnTargetEntryPoint)
+            {
+                pause();
+            }
         }
     }
     else if(bpInfo==BP_INFO_API_ENTER)

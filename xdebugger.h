@@ -38,6 +38,7 @@ public:
     struct OPTIONS
     {
         bool bShowWindow;
+        bool bPauseOnTargetEntryPoint;
         QString sArgument;
     };
 
@@ -98,12 +99,15 @@ public:
     void stepInto(HANDLE hThread,QVariant vInfo=QVariant());
 
     void stop();
+    void pause();
+    void resume();
+    void suspendThread(HANDLE hThread);
+    void resumeThread(HANDLE hThread);
 
     bool dumpMemoryRegionToFile(QString sFilename,qint64 nAddress,qint64 nSize);
     bool isAddressInImage(qint64 nAddress);
     bool isAddressInStack(qint64 nAddress);
 
-protected:
     struct FILE_INFO
     {
         quint16 nMachine;
@@ -235,10 +239,11 @@ protected:
         QVariant vInfo;
     };
 
+protected:
     virtual void _clear();
-    virtual void onFileLoad(XPE *pPE)                                               {Q_UNUSED(pPE)}
+    virtual void onFileLoad(XBinary *pBinary);
     virtual void onCreateProcessDebugEvent(CREATEPROCESS_INFO *pCreateProcessInfo)  {Q_UNUSED(pCreateProcessInfo)}
-    virtual void onCreateThreadDebugEvent(CREATETHREAD_INFO *pCreateThreadInfo)     {Q_UNUSED(pCreateThreadInfo)}
+    virtual void onCreateThreadDebugEvent(CREATETHREAD_INFO *pCreateThreadInfo);
     virtual void onExitProcessDebugEvent(EXITPROCESS_INFO *pExitProcessInfo)        {Q_UNUSED(pExitProcessInfo)}
     virtual void onExitThreadDebugEvent(EXITTHREAD_INFO *pExitThreadInfo)           {Q_UNUSED(pExitThreadInfo)}
     virtual void onLoadDllDebugEvent(DLL_INFO *pDllInfo)                            {Q_UNUSED(pDllInfo)}
@@ -246,7 +251,7 @@ protected:
     virtual void onOutputDebugStringEvent(DEBUG_EVENT *pDebugEvent)                 {Q_UNUSED(pDebugEvent)} // TODO Check
     virtual void onRipEvent(DEBUG_EVENT *pDebugEvent)                               {Q_UNUSED(pDebugEvent)}
     virtual void onProcessEntryPoint(ENTRYPOINT_INFO *pEntryPointInfo)              {Q_UNUSED(pEntryPointInfo)}
-    virtual void onTargetEntryPoint(ENTRYPOINT_INFO *pEntryPointInfo)               {Q_UNUSED(pEntryPointInfo)}
+    virtual void onTargetEntryPoint(ENTRYPOINT_INFO *pEntryPointInfo);
     virtual void onBreakPoint(BREAKPOINT_INFO *pBreakPointInfo)                     {Q_UNUSED(pBreakPointInfo)}
     virtual void onFunctionEnter(FUNCTION_INFO *pFunctionInfo)                      {Q_UNUSED(pFunctionInfo)}
     virtual void onFunctionLeave(FUNCTION_INFO *pFunctionInfo)                      {Q_UNUSED(pFunctionInfo)}
@@ -350,6 +355,9 @@ private:
 
 signals:
     void messageString(quint32 nType,QString sText);
+    void _onFileLoad(XBinary *pBinary);
+    void _onTargetEntryPoint(XDebugger::ENTRYPOINT_INFO *pEntryPointInfo);
+    void _onCreateThreadDebugEvent(XDebugger::CREATETHREAD_INFO *pCreateThreadInfo);
 
 private:
     XDebugger::OPTIONS options;
