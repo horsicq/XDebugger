@@ -38,7 +38,6 @@ public:
     struct OPTIONS
     {
         bool bShowWindow;
-        bool bPauseOnTargetEntryPoint;
         QString sArgument;
     };
 
@@ -49,9 +48,6 @@ public:
         MESSAGE_TYPE_WARNING,
         MESSAGE_TYPE_ERROR
     };
-
-    explicit XDebugger(QObject *parent=nullptr);
-    bool loadFile(QString sFileName,OPTIONS *pOptions=nullptr);
 
     struct DLL_INFO
     {
@@ -76,6 +72,9 @@ public:
         HANDLE hThread;
     };
 
+    explicit XDebugger(QObject *parent=nullptr);
+    void setData(QString sFileName,OPTIONS *pOptions);
+    bool loadFile(QString sFileName,OPTIONS *pOptions=nullptr);
     HANDLE getProcessHandle();
     QMap<qint64,DLL_INFO> *getMapDLL();
     quint64 getFunctionResult(FUNCTION_INFO *pFunctionInfo);
@@ -353,13 +352,22 @@ private:
     bool _setDbgRegs(HANDLE hThread,DBGREGS *pDr);
     bool _getDbgRegs(HANDLE hThread,DBGREGS *pDr);
 
+public slots:
+    void process();
+    void continueExecution();
+
 signals:
     void messageString(quint32 nType,QString sText);
+    void finished();
     void _onFileLoad(XBinary *pBinary);
     void _onTargetEntryPoint(XDebugger::ENTRYPOINT_INFO *pEntryPointInfo);
     void _onCreateThreadDebugEvent(XDebugger::CREATETHREAD_INFO *pCreateThreadInfo);
+    void _continueExecution();
 
 private:
+    QString d_sFileName;
+    XDebugger::OPTIONS *d_pOptions;
+
     XDebugger::OPTIONS options;
     quint32 nProcessId;
     CREATEPROCESS_INFO createProcessInfo;

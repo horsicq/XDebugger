@@ -25,6 +25,12 @@ XDebugger::XDebugger(QObject *parent) : QObject(parent)
 
 }
 
+void XDebugger::setData(QString sFileName, XDebugger::OPTIONS *pOptions)
+{
+    d_sFileName=sFileName;
+    d_pOptions=pOptions;
+}
+
 bool XDebugger::loadFile(QString sFileName, XDebugger::OPTIONS *pOptions)
 {
     bool bResult=false;
@@ -1195,10 +1201,12 @@ void XDebugger::_handleBP(LOAD_TYPE loadType,BP_INFO bpInfo, qint64 nAddress, HA
         {
             onTargetEntryPoint(&entryPointInfo);
 
-            if(options.bPauseOnTargetEntryPoint)
-            {
-                pause();
-            }
+//            if(options.bPauseAfterBP)
+//            {
+//                QEventLoop loop;
+//                connect(this,SIGNAL(_continueExecution()),&loop,SLOT(quit()));
+//                loop.exec();
+//            }
         }
     }
     else if(bpInfo==BP_INFO_TARGETDLL_ENTRYPOINT)
@@ -1212,10 +1220,12 @@ void XDebugger::_handleBP(LOAD_TYPE loadType,BP_INFO bpInfo, qint64 nAddress, HA
         {
             onTargetEntryPoint(&entryPointInfo);
 
-            if(options.bPauseOnTargetEntryPoint)
-            {
-                pause();
-            }
+//            if(options.bPauseAfterBP)
+//            {
+//                QEventLoop loop;
+//                connect(this,SIGNAL(_continueExecution()),&loop,SLOT(quit()));
+//                loop.exec();
+//            }
         }
     }
     else if(bpInfo==BP_INFO_API_ENTER)
@@ -1417,6 +1427,18 @@ bool XDebugger::_getDbgRegs(HANDLE hThread, XDebugger::DBGREGS *pDr)
     }
 
     return bResult;
+}
+
+void XDebugger::process()
+{
+    loadFile(d_sFileName,d_pOptions);
+
+    emit finished();
+}
+
+void XDebugger::continueExecution()
+{
+    emit _continueExecution();
 }
 
 void XDebugger::_messageString(XDebugger::MESSAGE_TYPE type, QString sText)
