@@ -100,6 +100,7 @@ public:
     void stop();
     void pause();
     void resume();
+    void step();
     void suspendThread(HANDLE hThread);
     void resumeThread(HANDLE hThread);
 
@@ -150,6 +151,7 @@ public:
         bool bStepInto;
         QVariant vStepIntoInfo;
         QMap<quint64,FUNCTION_INFO> mapAPI;
+        HANDLE hBPThread;
     };
 
     struct CREATETHREAD_INFO
@@ -255,7 +257,7 @@ protected:
     virtual void onFunctionEnter(FUNCTION_INFO *pFunctionInfo)                      {Q_UNUSED(pFunctionInfo)}
     virtual void onFunctionLeave(FUNCTION_INFO *pFunctionInfo)                      {Q_UNUSED(pFunctionInfo)}
     virtual void onSEH(SEH_INFO *pSEHInfo)                                          {Q_UNUSED(pSEHInfo)}
-    virtual void onStep(STEP_INFO *pStepInfo)                                       {Q_UNUSED(pStepInfo)}
+    virtual void onStep(STEP_INFO *pStepInfo);
     virtual void onException(EXCEPTION_INFO *pExceptionInfo)                        {Q_UNUSED(pExceptionInfo)}
     // TODO onException
 
@@ -352,6 +354,9 @@ private:
     bool _setDbgRegs(HANDLE hThread,DBGREGS *pDr);
     bool _getDbgRegs(HANDLE hThread,DBGREGS *pDr);
 
+    bool _suspendOtherThreads(HANDLE hCurrentThread);
+    bool _resumeOtherThreads(HANDLE hCurrentThread);
+
 public slots:
     void process();
     void continueExecution();
@@ -362,6 +367,7 @@ signals:
     void _onFileLoad(XBinary *pBinary);
     void _onTargetEntryPoint(XDebugger::ENTRYPOINT_INFO *pEntryPointInfo);
     void _onCreateThreadDebugEvent(XDebugger::CREATETHREAD_INFO *pCreateThreadInfo);
+    void _onStep(XDebugger::STEP_INFO *pStepInfo);
     void _continueExecution();
 
 private:

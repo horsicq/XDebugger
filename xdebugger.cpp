@@ -474,6 +474,11 @@ void XDebugger::resume()
     }
 }
 
+void XDebugger::step()
+{
+    stepInto(stats.hBPThread);
+}
+
 void XDebugger::suspendThread(HANDLE hThread)
 {
     SuspendThread(hThread);
@@ -714,6 +719,11 @@ void XDebugger::onCreateThreadDebugEvent(XDebugger::CREATETHREAD_INFO *pCreateTh
 void XDebugger::onTargetEntryPoint(XDebugger::ENTRYPOINT_INFO *pEntryPointInfo)
 {
     emit _onTargetEntryPoint(pEntryPointInfo);
+}
+
+void XDebugger::onStep(XDebugger::STEP_INFO *pStepInfo)
+{
+    emit _onStep(pStepInfo);
 }
 
 bool XDebugger::_setIP(HANDLE hThread, qint64 nAddress)
@@ -984,8 +994,10 @@ bool XDebugger::_loadFile(QString sFileName, XDebugger::LOAD_TYPE loadType, XDeb
                         {
                             if(mapBP_Instr.contains(nExceptionAddress))
                             {
-                                // TODO multithreads
-                                // Stop all another threads mb as options?
+                                stats.hBPThread=hThread;
+
+                                bool bThreadsSuspended=_suspendOtherThreads(hThread);
+
                                 BREAKPOINT_INSTR bpCC=mapBP_Instr.value(nExceptionAddress);
 
                                 if(bpCC.nCount!=-1)
@@ -1008,6 +1020,11 @@ bool XDebugger::_loadFile(QString sFileName, XDebugger::LOAD_TYPE loadType, XDeb
                                 if(bRestoreBPInstr)
                                 {
                                     _setStep(hThread);
+                                }
+
+                                if(bThreadsSuspended)
+                                {
+                                    _resumeOtherThreads(hThread);
                                 }
 
                                 nStatus=DBG_CONTINUE;
@@ -1033,8 +1050,13 @@ bool XDebugger::_loadFile(QString sFileName, XDebugger::LOAD_TYPE loadType, XDeb
                                 nStatus=DBG_CONTINUE;
                             }
 
+                            bool bThreadsSuspended=false;
+
                             if(stats.bStepInto)
                             {
+                                stats.hBPThread=hThread;
+                                bThreadsSuspended=_suspendOtherThreads(hThread);
+
                                 STEP_INFO stepInfo={};
 
                                 stepInfo.nAddress=nExceptionAddress;
@@ -1061,10 +1083,17 @@ bool XDebugger::_loadFile(QString sFileName, XDebugger::LOAD_TYPE loadType, XDeb
 
                                         if(mapBP_HW.contains(nBPAddress))
                                         {
+                                            if(!bThreadsSuspended) // If StepInto
+                                            {
+                                                bThreadsSuspended=_suspendOtherThreads(hThread);
+                                            }
+
                                             BREAKPOINT_HW bpHW=mapBP_HW.value(nBPAddress);
 
                                             if(i==bpHW.nIndex)
                                             {
+                                                stats.hBPThread=hThread;
+
                                                 if(bpHW.nCount!=-1)
                                                 {
                                                     bpHW.nCount--;
@@ -1092,6 +1121,11 @@ bool XDebugger::_loadFile(QString sFileName, XDebugger::LOAD_TYPE loadType, XDeb
                                         break;
                                     }
                                 }
+                            }
+
+                            if(bThreadsSuspended)
+                            {
+                                _resumeOtherThreads(hThread);
                             }
                         }
                         else if(nExceptionCode==EXCEPTION_GUARD_PAGE)
@@ -1200,13 +1234,6 @@ void XDebugger::_handleBP(LOAD_TYPE loadType,BP_INFO bpInfo, qint64 nAddress, HA
         if(loadType==LOAD_TYPE_EXE)
         {
             onTargetEntryPoint(&entryPointInfo);
-
-//            if(options.bPauseAfterBP)
-//            {
-//                QEventLoop loop;
-//                connect(this,SIGNAL(_continueExecution()),&loop,SLOT(quit()));
-//                loop.exec();
-//            }
         }
     }
     else if(bpInfo==BP_INFO_TARGETDLL_ENTRYPOINT)
@@ -1219,13 +1246,6 @@ void XDebugger::_handleBP(LOAD_TYPE loadType,BP_INFO bpInfo, qint64 nAddress, HA
         if(loadType==LOAD_TYPE_DLL)
         {
             onTargetEntryPoint(&entryPointInfo);
-
-//            if(options.bPauseAfterBP)
-//            {
-//                QEventLoop loop;
-//                connect(this,SIGNAL(_continueExecution()),&loop,SLOT(quit()));
-//                loop.exec();
-//            }
         }
     }
     else if(bpInfo==BP_INFO_API_ENTER)
@@ -1240,7 +1260,6 @@ void XDebugger::_handleBP(LOAD_TYPE loadType,BP_INFO bpInfo, qint64 nAddress, HA
 #else
         functionInfo.nStackFrame=(qint64)getRegister(functionInfo.hThread,REG_NAME_RSP);
 #endif
-
         onFunctionEnter(&functionInfo);
 
         quint64 nID=XBinary::random64();
@@ -1424,6 +1443,50 @@ bool XDebugger::_getDbgRegs(HANDLE hThread, XDebugger::DBGREGS *pDr)
         pDr->nControl=context.Dr7;
 
         bResult=true;
+    }
+
+    return bResult;
+}
+
+bool XDebugger::_suspendOtherThreads(HANDLE hCurrentThread)
+{
+    bool bResult=false;
+
+    QList<HANDLE> listThreads=mapThreads.values();
+
+    int nCount=listThreads.count();
+
+    // Suspend all other threads
+    for(int i=0;i<nCount;i++)
+    {
+        if(hCurrentThread!=listThreads.at(i))
+        {
+            suspendThread(listThreads.at(i));
+
+            bResult=true;
+        }
+    }
+
+    return bResult;
+}
+
+bool XDebugger::_resumeOtherThreads(HANDLE hCurrentThread)
+{
+    bool bResult=false;
+
+    QList<HANDLE> listThreads=mapThreads.values();
+
+    int nCount=listThreads.count();
+
+    // Resume all other threads
+    for(int i=0;i<nCount;i++)
+    {
+        if(hCurrentThread!=listThreads.at(i))
+        {
+            resumeThread(listThreads.at(i));
+
+            bResult=true;
+        }
     }
 
     return bResult;
