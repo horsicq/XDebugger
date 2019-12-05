@@ -474,9 +474,16 @@ void XDebugger::resume()
     }
 }
 
-void XDebugger::step()
+void XDebugger::stepInto()
 {
     stepInto(stats.hBPThread);
+}
+
+void XDebugger::stepOver()
+{
+    // TODO
+    // Check if not call -> stepInto
+    // If call break point on the next instruction
 }
 
 void XDebugger::suspendThread(HANDLE hThread)
