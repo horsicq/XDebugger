@@ -244,7 +244,7 @@ public:
 protected:
     virtual void _clear();
     virtual void onFileLoad(XBinary *pBinary);
-    virtual void onCreateProcessDebugEvent(CREATEPROCESS_INFO *pCreateProcessInfo)  {Q_UNUSED(pCreateProcessInfo)}
+    virtual void onCreateProcessDebugEvent(CREATEPROCESS_INFO *pCreateProcessInfo);
     virtual void onCreateThreadDebugEvent(CREATETHREAD_INFO *pCreateThreadInfo);
     virtual void onExitProcessDebugEvent(EXITPROCESS_INFO *pExitProcessInfo)        {Q_UNUSED(pExitProcessInfo)}
     virtual void onExitThreadDebugEvent(EXITTHREAD_INFO *pExitThreadInfo)           {Q_UNUSED(pExitThreadInfo)}
@@ -366,6 +366,7 @@ signals:
     void messageString(quint32 nType,QString sText);
     void finished();
     void _onFileLoad(XBinary *pBinary);
+    void _onCreateProcessDebugEvent(XDebugger::CREATEPROCESS_INFO *pCreateProcessInfo);
     void _onTargetEntryPoint(XDebugger::ENTRYPOINT_INFO *pEntryPointInfo);
     void _onCreateThreadDebugEvent(XDebugger::CREATETHREAD_INFO *pCreateThreadInfo);
     void _onStep(XDebugger::STEP_INFO *pStepInfo);

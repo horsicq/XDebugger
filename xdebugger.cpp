@@ -718,6 +718,11 @@ void XDebugger::onFileLoad(XBinary *pBinary)
     emit _onFileLoad(pBinary);
 }
 
+void XDebugger::onCreateProcessDebugEvent(XDebugger::CREATEPROCESS_INFO *pCreateProcessInfo)
+{
+    emit _onCreateProcessDebugEvent(pCreateProcessInfo);
+}
+
 void XDebugger::onCreateThreadDebugEvent(XDebugger::CREATETHREAD_INFO *pCreateThreadInfo)
 {
     emit _onCreateThreadDebugEvent(pCreateThreadInfo);
