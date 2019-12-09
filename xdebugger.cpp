@@ -728,6 +728,16 @@ void XDebugger::onCreateThreadDebugEvent(XDebugger::CREATETHREAD_INFO *pCreateTh
     emit _onCreateThreadDebugEvent(pCreateThreadInfo);
 }
 
+void XDebugger::onLoadDllDebugEvent(XDebugger::DLL_INFO *pDllInfo)
+{
+    emit _onLoadDllDebugEvent(pDllInfo);
+}
+
+void XDebugger::onUnloadDllDebugEvent(XDebugger::DLL_INFO *pDllInfo)
+{
+    emit _onUnloadDllDebugEvent(pDllInfo);
+}
+
 void XDebugger::onTargetEntryPoint(XDebugger::ENTRYPOINT_INFO *pEntryPointInfo)
 {
     emit _onTargetEntryPoint(pEntryPointInfo);

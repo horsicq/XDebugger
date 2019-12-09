@@ -248,8 +248,8 @@ protected:
     virtual void onCreateThreadDebugEvent(CREATETHREAD_INFO *pCreateThreadInfo);
     virtual void onExitProcessDebugEvent(EXITPROCESS_INFO *pExitProcessInfo)        {Q_UNUSED(pExitProcessInfo)}
     virtual void onExitThreadDebugEvent(EXITTHREAD_INFO *pExitThreadInfo)           {Q_UNUSED(pExitThreadInfo)}
-    virtual void onLoadDllDebugEvent(DLL_INFO *pDllInfo)                            {Q_UNUSED(pDllInfo)}
-    virtual void onUnloadDllDebugEvent(DLL_INFO *pDllInfo)                          {Q_UNUSED(pDllInfo)}
+    virtual void onLoadDllDebugEvent(DLL_INFO *pDllInfo);
+    virtual void onUnloadDllDebugEvent(DLL_INFO *pDllInfo);
     virtual void onOutputDebugStringEvent(DEBUG_EVENT *pDebugEvent)                 {Q_UNUSED(pDebugEvent)} // TODO Check
     virtual void onRipEvent(DEBUG_EVENT *pDebugEvent)                               {Q_UNUSED(pDebugEvent)}
     virtual void onProcessEntryPoint(ENTRYPOINT_INFO *pEntryPointInfo)              {Q_UNUSED(pEntryPointInfo)}
@@ -369,6 +369,8 @@ signals:
     void _onCreateProcessDebugEvent(XDebugger::CREATEPROCESS_INFO *pCreateProcessInfo);
     void _onTargetEntryPoint(XDebugger::ENTRYPOINT_INFO *pEntryPointInfo);
     void _onCreateThreadDebugEvent(XDebugger::CREATETHREAD_INFO *pCreateThreadInfo);
+    void _onLoadDllDebugEvent(XDebugger::DLL_INFO *pDllInfo);
+    void _onUnloadDllDebugEvent(XDebugger::DLL_INFO *pDllInfo);
     void _onStep(XDebugger::STEP_INFO *pStepInfo);
     void _continueExecution();
 
