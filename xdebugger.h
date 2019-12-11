@@ -241,36 +241,6 @@ public:
         QVariant vInfo;
     };
 
-protected:
-    virtual void _clear();
-    virtual void onFileLoad(XBinary *pBinary);
-    virtual void onCreateProcessDebugEvent(CREATEPROCESS_INFO *pCreateProcessInfo);
-    virtual void onCreateThreadDebugEvent(CREATETHREAD_INFO *pCreateThreadInfo);
-    virtual void onExitProcessDebugEvent(EXITPROCESS_INFO *pExitProcessInfo)        {Q_UNUSED(pExitProcessInfo)}
-    virtual void onExitThreadDebugEvent(EXITTHREAD_INFO *pExitThreadInfo)           {Q_UNUSED(pExitThreadInfo)}
-    virtual void onLoadDllDebugEvent(DLL_INFO *pDllInfo);
-    virtual void onUnloadDllDebugEvent(DLL_INFO *pDllInfo);
-    virtual void onOutputDebugStringEvent(DEBUG_EVENT *pDebugEvent)                 {Q_UNUSED(pDebugEvent)} // TODO Check
-    virtual void onRipEvent(DEBUG_EVENT *pDebugEvent)                               {Q_UNUSED(pDebugEvent)}
-    virtual void onProcessEntryPoint(ENTRYPOINT_INFO *pEntryPointInfo)              {Q_UNUSED(pEntryPointInfo)}
-    virtual void onTargetEntryPoint(ENTRYPOINT_INFO *pEntryPointInfo);
-    virtual void onBreakPoint(BREAKPOINT_INFO *pBreakPointInfo)                     {Q_UNUSED(pBreakPointInfo)}
-    virtual void onFunctionEnter(FUNCTION_INFO *pFunctionInfo)                      {Q_UNUSED(pFunctionInfo)}
-    virtual void onFunctionLeave(FUNCTION_INFO *pFunctionInfo)                      {Q_UNUSED(pFunctionInfo)}
-    virtual void onSEH(SEH_INFO *pSEHInfo)                                          {Q_UNUSED(pSEHInfo)}
-    virtual void onStep(STEP_INFO *pStepInfo);
-    virtual void onException(EXCEPTION_INFO *pExceptionInfo)                        {Q_UNUSED(pExceptionInfo)}
-    // TODO onException
-
-    bool setBP(HANDLE hThread,qint64 nAddress,BP_TYPE bpType=BP_TYPE_CC,BP_INFO bpInfo=BP_INFO_UNKNOWN,qint32 nCount=-1,QVariant vInfo=QVariant());
-    bool removeBP(HANDLE hThread,qint64 nAddress,XDebugger::BP_TYPE bpType);
-    bool addAPIHook(HANDLE hThread, QString sFunctionName, BP_TYPE bpType=BP_TYPE_CC);
-    bool removeAPIHook(QString sFunctionName);
-    bool _addAPIHook(HANDLE hThread, DLL_INFO dllInfo, QString sFunctionName, BP_TYPE bpType);
-    bool isAPIHook(QString sFunctionName);
-
-    QString getFunctionNameByAddress(qint64 nAddress);
-
     enum REG_NAME
     {
         REG_NAME_EAX=0,
@@ -305,6 +275,38 @@ protected:
 #endif
     };
 
+    static QMap<REG_NAME,quint64> getRegState(HANDLE hThread);
+
+protected:
+    virtual void _clear();
+    virtual void onFileLoad(XBinary *pBinary);
+    virtual void onCreateProcessDebugEvent(CREATEPROCESS_INFO *pCreateProcessInfo);
+    virtual void onCreateThreadDebugEvent(CREATETHREAD_INFO *pCreateThreadInfo);
+    virtual void onExitProcessDebugEvent(EXITPROCESS_INFO *pExitProcessInfo)        {Q_UNUSED(pExitProcessInfo)}
+    virtual void onExitThreadDebugEvent(EXITTHREAD_INFO *pExitThreadInfo)           {Q_UNUSED(pExitThreadInfo)}
+    virtual void onLoadDllDebugEvent(DLL_INFO *pDllInfo);
+    virtual void onUnloadDllDebugEvent(DLL_INFO *pDllInfo);
+    virtual void onOutputDebugStringEvent(DEBUG_EVENT *pDebugEvent)                 {Q_UNUSED(pDebugEvent)} // TODO Check
+    virtual void onRipEvent(DEBUG_EVENT *pDebugEvent)                               {Q_UNUSED(pDebugEvent)}
+    virtual void onProcessEntryPoint(ENTRYPOINT_INFO *pEntryPointInfo)              {Q_UNUSED(pEntryPointInfo)}
+    virtual void onTargetEntryPoint(ENTRYPOINT_INFO *pEntryPointInfo);
+    virtual void onBreakPoint(BREAKPOINT_INFO *pBreakPointInfo)                     {Q_UNUSED(pBreakPointInfo)}
+    virtual void onFunctionEnter(FUNCTION_INFO *pFunctionInfo)                      {Q_UNUSED(pFunctionInfo)}
+    virtual void onFunctionLeave(FUNCTION_INFO *pFunctionInfo)                      {Q_UNUSED(pFunctionInfo)}
+    virtual void onSEH(SEH_INFO *pSEHInfo)                                          {Q_UNUSED(pSEHInfo)}
+    virtual void onStep(STEP_INFO *pStepInfo);
+    virtual void onException(EXCEPTION_INFO *pExceptionInfo)                        {Q_UNUSED(pExceptionInfo)}
+    // TODO onException
+
+    bool setBP(HANDLE hThread,qint64 nAddress,BP_TYPE bpType=BP_TYPE_CC,BP_INFO bpInfo=BP_INFO_UNKNOWN,qint32 nCount=-1,QVariant vInfo=QVariant());
+    bool removeBP(HANDLE hThread,qint64 nAddress,XDebugger::BP_TYPE bpType);
+    bool addAPIHook(HANDLE hThread, QString sFunctionName, BP_TYPE bpType=BP_TYPE_CC);
+    bool removeAPIHook(QString sFunctionName);
+    bool _addAPIHook(HANDLE hThread, DLL_INFO dllInfo, QString sFunctionName, BP_TYPE bpType);
+    bool isAPIHook(QString sFunctionName);
+
+    QString getFunctionNameByAddress(qint64 nAddress);
+
     quint64 getRegister(HANDLE hThread,REG_NAME regName);
     bool setRegister(HANDLE hThread,REG_NAME regName,quint64 nValue);
     TARGET_INFO *getTargetInfo();
@@ -312,8 +314,6 @@ protected:
     qint64 _getRetAddress(HANDLE hThread);
     qint64 _getCurrentAddress(HANDLE hThread);
     void _messageString(MESSAGE_TYPE type,QString sText);
-
-    QMap<REG_NAME,quint64> _getRegState(HANDLE hThread);
 
 private:
     bool _setIP(HANDLE hThread,qint64 nAddress);

@@ -1531,26 +1531,26 @@ void XDebugger::_messageString(XDebugger::MESSAGE_TYPE type, QString sText)
     emit messageString(type,sText);
 }
 
-QMap<XDebugger::REG_NAME, quint64> XDebugger::_getRegState(HANDLE hThread)
+QMap<XDebugger::REG_NAME, quint64> XDebugger::getRegState(HANDLE hThread)
 {
     QMap<XDebugger::REG_NAME, quint64> mapResult;
 
-    CONTEXT context= {0};
+    CONTEXT context={0};
     context.ContextFlags=CONTEXT_ALL;
 
     if(GetThreadContext(hThread,&context))
     {
 #ifndef Q_OS_WIN64
         mapResult.insert(REG_NAME_EAX,context.Eax);
-        mapResult.insert(REG_NAME_EAX,context.Ebx);
-        mapResult.insert(REG_NAME_EAX,context.Ecx);
-        mapResult.insert(REG_NAME_EAX,context.Edx);
-        mapResult.insert(REG_NAME_EAX,context.Esi);
-        mapResult.insert(REG_NAME_EAX,context.Edi);
-        mapResult.insert(REG_NAME_EAX,context.Ebp);
-        mapResult.insert(REG_NAME_EAX,context.Esp);
-        mapResult.insert(REG_NAME_EAX,context.Eip);
-        mapResult.insert(REG_NAME_EAX,context.EFlags);
+        mapResult.insert(REG_NAME_EBX,context.Ebx);
+        mapResult.insert(REG_NAME_ECX,context.Ecx);
+        mapResult.insert(REG_NAME_EDX,context.Edx);
+        mapResult.insert(REG_NAME_ESI,context.Esi);
+        mapResult.insert(REG_NAME_EDI,context.Edi);
+        mapResult.insert(REG_NAME_EBP,context.Ebp);
+        mapResult.insert(REG_NAME_ESP,context.Esp);
+        mapResult.insert(REG_NAME_EIP,context.Eip);
+        mapResult.insert(REG_NAME_EFLAGS,context.EFlags);
 #else
         mapResult.insert(REG_NAME_EAX,context.Rax);
         mapResult.insert(REG_NAME_EAX,context.Rbx);
