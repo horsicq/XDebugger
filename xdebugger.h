@@ -29,6 +29,7 @@
 #include "xprocess.h"
 #include "xprocessdevice.h"
 #include "xpe.h"
+#include "xdisasm.h"
 
 class XDebugger : public QObject
 {
