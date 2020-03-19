@@ -13,10 +13,10 @@ SOURCES += \
 
 !contains(XCONFIG, xprocess) {
     XCONFIG += xprocess
-    include(../XProcess/xprocess.pri)
+    include($$PWD/../XProcess/xprocess.pri)
 }
 
 !contains(XCONFIG, xpe) {
     XCONFIG += xpe
-    include(../Formats/xpe.pri)
+    include($$PWD/../Formats/xpe.pri)
 }
