@@ -859,7 +859,7 @@ bool XDebugger::_loadFile(QString sFileName, XDebugger::LOAD_TYPE loadType, XDeb
 
             while(true)
             {
-                DEBUG_EVENT DBGEvent= {0};
+                DEBUG_EVENT DBGEvent={0};
                 WaitForDebugEvent(&DBGEvent, INFINITE);
 
                 quint32 nStatus=DBG_CONTINUE;
