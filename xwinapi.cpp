@@ -19,7 +19,6 @@ void XWinAPI::handle_Kernel32_GetProcAddress(XDebugger *pDebugger, XDebugger::FU
     #ifndef Q_OS_WIN64
         if(pData->_lpProcName&0xFFFF0000)
         {
-
             pData->bIsOrdinal=false;
             pData->sFunction=pDebugger->read_ansiString(pData->_lpProcName);
         }

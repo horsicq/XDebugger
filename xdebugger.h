@@ -146,6 +146,7 @@ public:
         qint64 nStackAddress;
         qint64 nStackSize;
     };
+
     struct STATS
     {
         bool bProcessEP;
